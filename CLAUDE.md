@@ -53,11 +53,15 @@ Not goals:
 - **A platform is one module.** `platform/posix/main.cpp` is the host's: it holds the platform
   functions, the command line, and the list of dialects in the build (`dialects[]`), and it
   configures the Apple II machine. A 68000 platform has its own `main` and `dialects[]` and does
-  not link `machines/apple2`.
+  not link `machines/apple2` (the gfx pack borrows its `font.h`, a header).
 - **Extension statements.** A dialect's keyword table marks a keyword `KW_EXT` or `KW_EXTFN` with
   an id and an argument signature (`dialects/msfamily.h`). The shared parser compiles the
   arguments, and the executor calls `Machine::ext` on the dialect's one `Machine`
   (`core/basic.h`). `dialects/applesoft.cpp` with `machines/apple2` is the worked example.
+- **The gfx pack** (`machines/gfx`) is the griffin dialect's `Machine`: drawing, sprites, input
+  devices and sound, all in portable code over the `plat_fb_*`, `plat_audio_*`, `plat_joystick`
+  and related functions in `core/platform.h`. Pictures are drawn in software so they are the
+  same on every machine; sound is generated as the program runs, never from an interrupt.
 - **Extension packs that register themselves,** as the plan describes, are not built. How `gfx`
   and a later Griffin video pack combine in one dialect is undecided.
 - **The display interface** (`plat_display_*` in `core/platform.h`) shows a framebuffer of

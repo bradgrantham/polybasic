@@ -24,7 +24,7 @@ uint8_t *pages[2];
 int shown;
 bool window;
 uint32_t last_present;
-void (*idle_fn)();
+bool (*idle_fn)();
 
 bool device;                      // sound goes to the sound device
 bool audio_open;
@@ -134,8 +134,10 @@ uint32_t plat_clock()
 int plat_joystick() { return 0; }
 int plat_paddle(int) { return -1; }
 
-int plat_audio_open()
+int plat_audio_open(const uint8_t **codes)
 {
+    static const uint8_t levels[9] = {0, 1, 2, 3, 4, 5, 6, 7, 8};
+    *codes = levels;
     if(!audio_open) {
         audio_open = true;
         device = opt.sound && !opt.wav && plat_is_terminal() && host_audio_open(RATE);
@@ -176,7 +178,7 @@ void plat_audio_close(bool now)
     audio_open = false;
 }
 
-void plat_on_idle(void (*fn)()) { idle_fn = fn; }
+void plat_on_idle(bool (*fn)()) { idle_fn = fn; }
 
 void av_finish()
 {

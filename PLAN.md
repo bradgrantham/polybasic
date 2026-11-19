@@ -114,7 +114,9 @@ Griffin's unusual hardware will not fit a fixed interface, so there are two esca
 
 Linked into Griffin Jr. and host builds of the griffin dialect. Implemented in software over a
 framebuffer on Griffin Jr., and over an SDL3 texture on a host, so the same program runs on both.
-Statement names are proposals.
+The table is the proposal the work started from; what was built, with sound added, is listed in
+`README.md`. Differences: `SPRITE DEFINE` takes its pixels from the screen, there is a `TEXT`
+statement, and the pack is the griffin dialect's `Machine`, not a pack that registers itself.
 
 | Statement / function | Meaning |
 |---|---|
@@ -178,7 +180,7 @@ Each phase ends with something runnable and a test that proves it.
      kept as references. **Done.**
    - **4b. The `gfx` extension pack** on an SDL3 host and Griffin Jr. It needs phase 2a and the
      griffin dialect. *Check:* one `gfx` demo program produces the same picture on the host and
-     in the Griffin Jr. emulator.
+     in the Griffin Jr. emulator. **Done**, with the griffin dialect and sound.
 5. **Applesoft memory access.** `PEEK`/`POKE`/`WAIT` hooks and the ROM `CALL` stubs.
    *Check:* the 33 soft-switch-only programs and the 62 ROM-call-only programs load and a subset runs.
    **Partly done.**
@@ -208,6 +210,10 @@ Small changes to the unpacker (the disk collection's `_tools`) so the corpus fee
 - **`gfx` statements:** derived from the table above.
 - **Phase 1 tests:** the old interpreter's test programs, copied into `tests/programs`.
 - **Griffin Jr. toolchain:** the SDK's own `m68k-unknown-elf` GCC in `~/x-tools`.
+- **Griffin Jr. screen:** graphics draw on the page the text console does not use, shown from the
+  first drawing statement; the console comes back when the program stops and a key is pressed.
+- **Sound:** three square-wave voices; `SOUND`, `BEEP` and `PLAY` with GW-BASIC/MSX music
+  strings, played in the background from the BIOS audio stream, not from an interrupt of ours.
 - **Tests on Griffin Jr.** run in its emulator with the interpreter's console on serial port A
   (`basic -s`), which is the emulator's standard input and output, so they compare against the
   same expected output as the host.
@@ -217,15 +223,21 @@ Small changes to the unpacker (the disk collection's `_tools`) so the corpus fee
 1. **Griffin Jr. size target.** The first measurement is 136 KB of the 842 KB (130 KB of code at
    `-O2`, 95 KB at `-Os`; `STATUS.md` has the table). A target, and whether to prefer speed or
    size, is to be agreed.
-2. **Ahl listings:** more of them would widen the msbasic tests; a source for the files is needed.
-3. **RND seeding:** `RND` currently gives the same sequence every run (as the original machines did,
+2. **Griffin Jr. direct mode** starts in msbasic unless `basic -g` is given; a loaded file's
+   header line picks its dialect. The default could be griffin.
+3. **Text while a picture is shown.** `PRINT` goes to the hidden text screen. It could instead
+   be drawn on the picture, or the screen could be split.
+4. **How `gfx` and a Griffin video pack combine** in one dialect is still undecided: a dialect
+   has one `Machine`.
+5. **Ahl listings:** more of them would widen the msbasic tests; a source for the files is needed.
+6. **RND seeding:** `RND` currently gives the same sequence every run (as the original machines did,
    and so tests are repeatable); `--randomize` changes that. The default could be flipped.
-4. **Applesoft keyboard input is upper-cased**, as on an Apple II or II+, so `IF A$ = "Y"` works
+7. **Applesoft keyboard input is upper-cased**, as on an Apple II or II+, so `IF A$ = "Y"` works
    when typing in lower case. Programs that expect lower-case text entry would need a switch.
-5. **`CHAIN` (ProDOS)** starts the named program afresh; it should keep the variables.
-6. **Pacing in the window.** A program in the graphics window is slowed to roughly an Apple's
+8. **`CHAIN` (ProDOS)** starts the named program afresh; it should keep the variables.
+9. **Pacing in the window.** A program in the graphics window is slowed to roughly an Apple's
    speed (a millisecond per loop iteration and per screen statement) so that delay loops and
    animation behave; `--fast` turns that off. The charges are guesses, and the default could be
    the other way round.
-7. **Hi-res line drawing** uses Bresenham's algorithm, not the ROM's, so slanted lines can differ
+10. **Hi-res line drawing** uses Bresenham's algorithm, not the ROM's, so slanted lines can differ
    from a real Apple's by a dot. Matching the ROM exactly needs its listing.

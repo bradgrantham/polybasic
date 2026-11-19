@@ -3,6 +3,7 @@ BASIC for Griffin Jr.
   D:                     switch to the card
   basic                  direct mode; QUIT returns to the monitor
   basic STARTREK.BAS     run a program
+  basic -g               direct mode in Griffin BASIC (graphics, sound)
   basic -s               use serial port A (38400 8N1) as the console
 
 In direct mode: LOAD "LUNAR.BAS", RUN, LIST, NEW, SAVE "NAME.BAS".
@@ -20,6 +21,13 @@ Programs
   BIORHYTHM.BAS  Biorhythm chart from a birth date.
   ADVENTURE.BAS  Griffin's Keep, a small adventure. Type HELP.
   FIZZBUZZ.BAS   The usual.
+
+Griffin BASIC programs (graphics and sound; a picture stays up until
+a key is pressed)
+
+  BOUNCE.BAS     Bouncing sprites on two pages, with sound. Any key ends.
+  ROSETTE.BAS    A figure of coloured lines.
+  MUSIC.BAS      Ode to Joy on three voices. Any key stops it.
 
 The first five are from "BASIC Computer Games" (Creative Computing) and
 were written for terminals of 64 or more columns; this screen has 53.

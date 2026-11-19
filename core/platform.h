@@ -82,18 +82,23 @@ int plat_paddle(int n);
 
 // Sound (optional): a stream of output levels, 0 to 8 with 4 as silence,
 // played at a fixed rate.  plat_audio_open starts the stream and returns its
-// rate in levels a second, or 0 where there is no sound.  plat_audio_block
-// returns room for *count levels, or null when the platform has enough queued
-// for now; plat_audio_submit plays what was written there.  plat_audio_close
-// lets what is queued finish (or drops it, if `now`) and stops.
-int plat_audio_open();
+// rate in levels a second, or 0 where there is no sound; it sets *codes to
+// nine bytes, the byte to write for each level (on Griffin Jr. these are the
+// hardware's bit patterns, which saves a pass over every block).
+// plat_audio_block returns room for *count of those bytes, or null when the
+// platform has enough queued for now; plat_audio_submit plays what was
+// written there.  plat_audio_close lets what is queued finish (or drops it,
+// if `now`) and stops.
+int plat_audio_open(const uint8_t **codes);
 uint8_t *plat_audio_block(int *count);
 void plat_audio_submit();
 void plat_audio_close(bool now);
 
 // Ask for fn to be called regularly while the platform waits (for a key, a
-// line of input, a sleep or a frame), so that sound can be kept fed.
-void plat_on_idle(void (*fn)());
+// line of input, a sleep or a frame), so that sound can be kept fed.  fn
+// returns false when it has nothing more to do for now, and the platform may
+// then wait without calling it.
+void plat_on_idle(bool (*fn)());
 
 }  // namespace basic
 

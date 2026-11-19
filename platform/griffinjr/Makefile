@@ -36,11 +36,12 @@ LDFLAGS  = -m68000 -nostartfiles -T $(SDK)/user.ld -L$(JR)/sdk -Wl,--gc-sections
 LDLIBS   = -Wl,--start-group -lm -lc -lsys -Wl,--end-group -lgcc
 
 SOURCES  = core/exec.cpp core/program.cpp core/number.cpp \
-           dialects/msfamily.cpp dialects/msbasic.cpp \
+           dialects/msfamily.cpp dialects/msbasic.cpp dialects/griffin.cpp \
+           machines/gfx/gfx.cpp machines/gfx/sound.cpp \
            platform/griffinjr/main.cpp
 OBJECTS  = $(SOURCES:%.cpp=$(B)/%.o)
 HEADERS  = $(TOP)/core/basic.h $(TOP)/core/ops.h $(TOP)/core/platform.h \
-           $(TOP)/dialects/msfamily.h
+           $(TOP)/dialects/msfamily.h $(TOP)/machines/gfx/gfx.h $(TOP)/machines/apple2/font.h
 
 all: $(B)/basic.elf
 
@@ -65,13 +66,16 @@ bench: $(B)/basic.elf
 # mkimage.sh makes the image afresh each time.
 CARD_MB ?= 64
 CARD_PROGRAMS = startrek lunar life 3dplot sine sinejr mandel biorhythm adventure fizzbuzz
+CARD_DEMOS = bounce rosette music
 CARD_FILES = $(B)/card/BASIC.ELF $(B)/card/README.TXT \
-             $(foreach p,$(CARD_PROGRAMS),$(B)/card/$(shell echo $(p).bas | tr '[:lower:]' '[:upper:]'))
+             $(foreach p,$(CARD_PROGRAMS) $(CARD_DEMOS),$(B)/card/$(shell echo $(p).bas | tr '[:lower:]' '[:upper:]'))
 sdcard: $(B)/basic.elf
 	@mkdir -p $(B)/card
 	cp $(B)/BASIC.ELF sdcard/README.TXT $(B)/card/
 	for p in $(CARD_PROGRAMS); do \
 	    cp $(TOP)/tests/programs/$$p.bas $(B)/card/$$(echo $$p.bas | tr '[:lower:]' '[:upper:]'); done
+	for p in $(CARD_DEMOS); do \
+	    cp $(TOP)/demos/$$p.bas $(B)/card/$$(echo $$p.bas | tr '[:lower:]' '[:upper:]'); done
 	sh $(JR)/fw/test/mkimage.sh $(B)/sd.img $(CARD_MB) $(CARD_FILES)
 
 clean:

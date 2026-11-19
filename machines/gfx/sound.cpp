@@ -38,18 +38,31 @@ struct Voice {
     uint16_t length, tempo;
 };
 
+enum { BIAS = 16 };               // keeps the sums of three voices inside a byte
+
 struct Sound {
     bool tried, open;
     uint32_t rate;
+    uint8_t code[2 * BIAS];       // a biased sum of the voices to the platform's byte
     Voice voice[SOUND_VOICES];
 } s;
 
 enum { STYLE_NORMAL, STYLE_LEGATO, STYLE_STACCATO };
 
+bool any_active();
+
+// What the platform calls while it waits; false when there is nothing queued.
+bool idle()
+{
+    sound_pump();
+    return any_active();
+}
+
 bool start()
 {
     if(!s.tried) {
         s.tried = true;
+        plat_on_idle(idle);
         for(Voice &v : s.voice) {
             v.octave = 4;
             v.volume = 8;
@@ -59,9 +72,14 @@ bool start()
         }
     }
     if(!s.open) {
-        int rate = plat_audio_open();
+        const uint8_t *codes;
+        int rate = plat_audio_open(&codes);
         if(rate <= 0) { return false; }
         s.rate = static_cast<uint32_t>(rate);
+        for(int k = 0; k < 2 * BIAS; k++) {
+            int level = k - (BIAS - 4);
+            s.code[k] = codes[level < 0 ? 0 : (level > 8 ? 8 : level)];
+        }
         s.open = true;
     }
     return true;
@@ -84,11 +102,11 @@ void add_square(Voice &v, uint8_t *out, uint32_t count)
         // Whole samples before the wave changes sign: at least one.
         uint32_t run = (static_cast<uint32_t>(v.toggle) + 0xFFFFu) >> 16;
         if(run > count) { run = count; }
+        uint32_t ran = run;
         uint8_t delta = v.high ? v.amp : static_cast<uint8_t>(-v.amp);
-        for(uint32_t k = 0; k < run; k++) { out[k] = static_cast<uint8_t>(out[k] + delta); }
-        out += run;
         count -= run;
-        v.toggle -= static_cast<int32_t>(run << 16);
+        do { *out = static_cast<uint8_t>(*out + delta); out++; } while(--run);
+        v.toggle -= static_cast<int32_t>(ran << 16);
         if(v.toggle <= 0) {
             v.toggle += static_cast<int32_t>(v.half);
             v.high = !v.high;
@@ -96,10 +114,9 @@ void add_square(Voice &v, uint8_t *out, uint32_t count)
     }
 }
 
-// Fill `count` output levels from the queues; silence where they run out.
+// Fill `count` bytes of output from the queues; silence where they run out.
 void fill(uint8_t *out, uint32_t count)
 {
-    enum { BIAS = 16 };           // keeps the sums of three voices inside a byte
     memset(out, BIAS, count);
     for(Voice &v : s.voice) {
         uint32_t at = 0;
@@ -124,10 +141,8 @@ void fill(uint8_t *out, uint32_t count)
             if(v.left == 0) { v.busy = false; }
         }
     }
-    for(uint32_t k = 0; k < count; k++) {
-        int level = out[k] - (BIAS - 4);
-        out[k] = static_cast<uint8_t>(level < 0 ? 0 : (level > 8 ? 8 : level));
-    }
+    const uint8_t *code = s.code;
+    for(uint8_t *end = out + count; out != end; out++) { *out = code[*out & (2 * BIAS - 1)]; }
 }
 
 // Append an event, waiting for the voice's queue to drain if it is full.

@@ -6,19 +6,19 @@ What exists and what comes next. The phases are defined in [PLAN.md](PLAN.md).
 |---|---|---|
 | 1 | Core and msbasic on a host terminal | Done |
 | 2a | Griffin Jr. build, console only | Done, except that a size target is not agreed yet |
-| 2b | Griffin build, console only; griffin dialect | **Next**; not started |
+| 2b | Griffin build, console only | Not started (the griffin dialect is done, under 4b) |
 | 3 | Applesoft, text only, with the DOS command layer | Done |
 | 4a | Apple II graphics: window and PNG | Done |
-| 4b | `gfx` extension pack on an SDL3 host and Griffin Jr. | Not started; needs 2a and the griffin dialect |
+| 4b | Griffin dialect; `gfx` pack with sound, on a host and Griffin Jr. | Done |
 | 5 | Applesoft memory access | Partly done |
 | 6 | Integer BASIC front end | Not started |
 | 7 | Griffin video pack; 6502 core | Not started; each needs a design |
 
-`make test` runs 45 tests and all pass: on a Mac built with clang, against SDL3 and with
+`make test` runs 51 tests and all pass: on a Mac built with clang, against SDL3 and with
 `SDL3=no`; on Linux (x86-64) built with GCC 13.3 with `SDL3=no`, where they also pass under
 `-fsanitize=address,undefined`, and against SDL 3.4.20 (built from source into `~/.local`; the
-window opened on a GNOME desktop through XWayland). `make test-griffinjr` runs the 18
-msbasic tests on Griffin Jr. in its emulator and all pass. Nothing exists yet for Griffin.
+window opened on a GNOME desktop through XWayland). `make test-griffinjr` runs the 24
+msbasic and griffin tests on Griffin Jr. in its emulator and all pass. Nothing exists yet for Griffin.
 
 ## Phase 1: core and msbasic (done)
 
@@ -213,6 +213,64 @@ rotation table. Shapes at `ROT=` values that are not multiples of 16 are approxi
 
 Not done: flashing text flashes in the window but is plain inverse in a PNG; text
 page 2 is never shown.
+
+## Phase 4b: the griffin dialect and the gfx pack (done)
+
+Griffin BASIC with drawing, sprites, input devices and sound, on the host and on Griffin Jr.
+`README.md` lists the statements.
+
+- **Griffin dialect** (`dialects/griffin.cpp`): the msbasic statements on the shared parser with
+  long variable names and keywords that must stand alone (`GOTO 100`, not `GOTO100`), `ELSE`,
+  `TIMER`, `DATE$`, `TIME$`. A file whose first line is `REM GRIFFIN BASIC` selects it. A name
+  may contain a keyword but not be one: `step` and `mid$` are taken.
+- **Parser** (`dialects/msfamily.cpp`): an extension statement's syntax may have alternatives
+  introduced by a bare word (`SPRITE DEFINE`, `SOUND OFF`); extension functions may take no
+  parentheses (`TIMER`, `INKEY$`) and may return strings.
+- **The gfx pack** (`machines/gfx`) is the dialect's `Machine`. It draws in software into pages
+  of RGB332 pixels the platform owns, so a picture is the same on every machine. Sound is three
+  square-wave voices mixed into the nine output levels a platform plays, fed from queues as the
+  program runs and while it waits; `PLAY` takes GW-BASIC/MSX-style music strings.
+- **Platform interface** (`core/platform.h`): framebuffer pages, a sound stream, joystick,
+  paddles, the clock, and an idle hook. The host implements them in `platform/posix/av.cpp` over
+  the display window, `--png`, the SDL3 sound device and `--wav`; Griffin Jr. over its
+  framebuffer and the BIOS audio stream and joystick calls.
+- **On Griffin Jr.** graphics go on the framebuffer page the console does not use and are shown
+  from the first drawing statement; when the program stops the picture stays until a key is
+  pressed, then the text screen returns with its contents. A program that shows the second page
+  has drawn over the console, which is then cleared.
+- **Tests:** 7 in `tests/griffin` (language, an error session, three pictures, one sound test
+  with a WAV). On Griffin Jr. the three pictures are compared pixel for pixel with the host's
+  PNGs (`tools/fbcompare.py` against the emulator's memory dump) and match, including
+  `rosette`, whose coordinates come from `SIN` and `COS`. This is the phase's check.
+- **Demos** (`demos/`, also on the card image): `bounce` (sprites and sound), `rosette`, `music`
+  (Ode to Joy on three voices).
+
+Measured on Griffin Jr. in the emulator:
+
+- The program is now 149,888 bytes of text, 1,760 of data and 6,700 of bss: about 158 KB of the
+  842 KB.
+- A 6-second tone played with no gap while a program ran loops, built strings and waited at
+  `INPUT` (checked in the emulator's audio recording). While sound plays, a BASIC loop runs at
+  about half speed (0.78 s became 1.61 s); the BIOS's audio interrupt alone takes a third of the
+  CPU.
+- The tones in the emulator's recording of `tests/griffin/sound/tune.bas` are at the same
+  frequencies, in the same order, as in the host's WAV.
+- `bounce` moves six sprites at about 13 frames a second. Most of that time is the interpreter
+  running some fifty statements a frame, not the drawing. Clearing a whole page takes over a
+  frame and a half, so a program should rub out what moved, not use `CLS` every frame.
+
+Not done, or not tried:
+
+- Nothing was seen or heard by a person yet: on the host the window and sound device need a
+  terminal session, and on Griffin Jr. the checks were memory dumps, text dumps and recordings.
+- The host has no joystick or paddles (`JOY` gives 0, `PADDLE` -1). On Griffin Jr. `JOY` and
+  `PADDLE` call the BIOS but were not tried with the emulator's `--joy` and `--paddle`.
+- `PRINT` and `INPUT` use the text screen, which is hidden while a picture is shown; text on a
+  picture is `GPRINT`.
+- With the console on a host terminal, sound stops being fed while the program waits at
+  `INPUT`.
+- PAL machines play at 15,625 Hz, not 15,707; the rate is taken from the BIOS but was not tried.
+- The griffin dialect is not in a Griffin build (phase 2b), and Griffin video is its own pack.
 
 ## Phase 5: Applesoft memory access (partly done)
 

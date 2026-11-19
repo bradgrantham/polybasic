@@ -1,6 +1,9 @@
 #!/bin/sh
-# Run the msbasic tests on Griffin Jr., in its emulator, and compare each
-# one's output with the same NAME.out the host build is held to.
+# Run the msbasic and griffin tests on Griffin Jr., in its emulator, and
+# compare each one's output with the same NAME.out the host build is held to.
+# For the tests in tests/griffin/pictures the framebuffer is compared too,
+# with the host's NAME.png (tools/fbcompare.py).  Sound is not compared: the
+# tests in tests/griffin/sound only have to run and print the same.
 #
 # usage: tests/run-griffinjr.sh [--bench] [NAME...]
 #
@@ -32,7 +35,9 @@ if [ "$1" = "--bench" ]; then bench=1; shift; fi
 if [ -n "$bench" ]; then
     tests=$(ls tests/bench/*.bas)
 else
-    tests=$(ls tests/programs/*.bas tests/lang/*.bas tests/lang/*.cmd)
+    tests=$(ls tests/programs/*.bas tests/lang/*.bas tests/lang/*.cmd \
+        tests/griffin/*.bas tests/griffin/*.cmd tests/griffin/pictures/*.bas \
+        tests/griffin/sound/*.bas)
 fi
 if [ $# -gt 0 ]; then
     all=$tests; tests=
@@ -67,7 +72,10 @@ run_emu() {
         $input .= "\x04";
         my $pid = open(my $p, "-|", $emu, "--rom", $rom, "--headless", "--fast", "--no-stdin",
             "--type", $cmd . "\\n", "--type-delay", "350",
-            "--serial-type", $input, "--serial-type-delay", "350") or die "cannot run $emu\n";
+            "--serial-type", $input, "--serial-type-delay", "350",
+            # both framebuffer pages, for the picture tests
+            "--dump-mem", "0xDA800", "76800", "--dump-mem", "0xED400", "76800")
+            or die "cannot run $emu\n";
         binmode $p;
         $SIG{ALRM} = sub { kill "TERM", $pid; print STDERR "timeout\n"; exit 3; };
         alarm $limit;
@@ -102,10 +110,15 @@ for t in $tests; do
     elif [ $status -ne 0 ]; then
         echo "FAIL $t: the emulator run did not finish (status $status): $out"
         failed=$((failed + 1))
-    elif cmp -s "$base.out" "$out"; then
+    elif ! cmp -s "$base.out" "$out"; then
+        echo "FAIL $t: diff $base.out $out"
+        failed=$((failed + 1))
+    elif case $t in tests/griffin/pictures/*) false ;; *) true ;; esac; then
+        :
+    elif python3 tools/fbcompare.py "$base.png" "$B/emu.log" > "$B/$name.fb"; then
         :
     else
-        echo "FAIL $t: diff $base.out $out"
+        echo "FAIL $t: picture differs from $base.png: $(cat "$B/$name.fb")"
         failed=$((failed + 1))
     fi
 done

@@ -61,6 +61,31 @@ uint8_t arg_colour(Interp &in, const Value &v)
 
 // ---- the screen ---------------------------------------------------------------
 
+// memset for long runs: the C library's on the 68000 goes a byte at a time,
+// which makes clearing a page take four frames.  Sixteen bytes a turn here.
+void fill(uint8_t *p, uint8_t c, size_t n)
+{
+    if(n < 32) {
+        memset(p, c, n);
+        return;
+    }
+    while(reinterpret_cast<uintptr_t>(p) & 3) {
+        *p++ = c;
+        n--;
+    }
+    uint32_t four = c * 0x01010101u;
+    uint32_t *q = reinterpret_cast<uint32_t *>(__builtin_assume_aligned(p, 4));
+    for(size_t k = n >> 4; k > 0; k--) {
+        q[0] = four;
+        q[1] = four;
+        q[2] = four;
+        q[3] = four;
+        q += 4;
+    }
+    p = reinterpret_cast<uint8_t *>(q);
+    for(n &= 15; n > 0; n--) { *p++ = c; }
+}
+
 // Every drawing statement comes through here first.
 void graphics(Interp &in)
 {
@@ -78,7 +103,7 @@ void graphics(Interp &in)
         g.draw = g.show = 0;
         g.fg = 255;
         g.bg = 0;
-        memset(g.page[0], 0, static_cast<size_t>(g.w) * static_cast<size_t>(g.h));
+        fill(g.page[0], 0, static_cast<size_t>(g.w) * static_cast<size_t>(g.h));
         plat_fb_show(0);
     }
 }
@@ -91,9 +116,16 @@ void text_screen(bool wait)
     }
 }
 
+// Where row y of the page being drawn on starts.  A 16-bit multiply: the
+// 68000 has no other, and a 32-bit one is a library call for every dot.
+inline uint8_t *row(int y)
+{
+    return g.page[g.draw] + static_cast<int16_t>(y) * static_cast<int16_t>(g.w);
+}
+
 inline void pset(int x, int y, uint8_t c)
 {
-    if(x >= 0 && x < g.w && y >= 0 && y < g.h) { g.page[g.draw][y * g.w + x] = c; }
+    if(x >= 0 && x < g.w && y >= 0 && y < g.h) { row(y)[x] = c; }
 }
 
 void hline(int x0, int x1, int y, uint8_t c)
@@ -102,7 +134,7 @@ void hline(int x0, int x1, int y, uint8_t c)
     if(x0 > x1) { int t = x0; x0 = x1; x1 = t; }
     if(x0 < 0) { x0 = 0; }
     if(x1 >= g.w) { x1 = g.w - 1; }
-    if(x0 <= x1) { memset(g.page[g.draw] + y * g.w + x0, c, static_cast<size_t>(x1 - x0 + 1)); }
+    if(x0 <= x1) { fill(row(y) + x0, c, static_cast<size_t>(x1 - x0 + 1)); }
 }
 
 void vline(int x, int y0, int y1, uint8_t c)
@@ -111,7 +143,7 @@ void vline(int x, int y0, int y1, uint8_t c)
     if(y0 > y1) { int t = y0; y0 = y1; y1 = t; }
     if(y0 < 0) { y0 = 0; }
     if(y1 >= g.h) { y1 = g.h - 1; }
-    uint8_t *p = g.page[g.draw] + y0 * g.w + x;
+    uint8_t *p = row(y0) + x;
     for(int y = y0; y <= y1; y++, p += g.w) { *p = c; }
 }
 
@@ -195,7 +227,7 @@ void sprite_define(Interp &in, Value *a, int nargs)
     s.h = static_cast<int16_t>(h);
     s.clear = static_cast<int16_t>(clear);
     for(int r = 0; r < h; r++) {
-        memcpy(pixels + r * w, g.page[g.draw] + (y + r) * g.w + x, static_cast<size_t>(w));
+        memcpy(pixels + r * w, row(y + r) + x, static_cast<size_t>(w));
     }
 }
 
@@ -210,7 +242,7 @@ void sprite_draw(Interp &in, Value *a)
     int r0 = y < 0 ? -y : 0, r1 = y + s.h > g.h ? g.h - y : s.h;
     for(int r = r0; r < r1; r++) {
         const uint8_t *from = s.pixels + r * s.w + c0;
-        uint8_t *to = g.page[g.draw] + (y + r) * g.w + x + c0;
+        uint8_t *to = row(y + r) + x + c0;
         if(s.clear < 0) {
             if(c1 > c0) { memcpy(to, from, static_cast<size_t>(c1 - c0)); }
             continue;
@@ -271,7 +303,7 @@ void gfx_ext(Interp &in, uint16_t id, Value *a, int nargs, Value *result)
     switch(id) {
         case GX_CLS:
             graphics(in);
-            memset(g.page[g.draw], nargs > 0 ? arg_colour(in, a[0]) : g.bg,
+            fill(g.page[g.draw], nargs > 0 ? arg_colour(in, a[0]) : g.bg,
                 static_cast<size_t>(g.w) * static_cast<size_t>(g.h));
             break;
         case GX_COLOR: {
@@ -407,7 +439,7 @@ void gfx_ext(Interp &in, uint16_t id, Value *a, int nargs, Value *result)
         case GX_POINT: {
             int x = arg_int(in, a[0]), y = arg_int(in, a[1]);
             graphics(in);
-            result->i = x >= 0 && x < g.w && y >= 0 && y < g.h ? g.page[g.draw][y * g.w + x] : -1;
+            result->i = x >= 0 && x < g.w && y >= 0 && y < g.h ? row(y)[x] : -1;
             break;
         }
         case GX_SCRW: case GX_SCRH:
