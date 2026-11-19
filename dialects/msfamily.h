@@ -35,8 +35,8 @@ struct Keyword {
     // the argument syntax.  In `sig`, N is a numeric expression, S a string
     // expression, ',' a comma, '@' the word AT, and everything after a '?'
     // may be left out.
-    uint16_t id;
-    const char *sig;
+    uint16_t id = 0;
+    const char *sig = nullptr;
 };
 
 // The table is terminated by an entry with a null text.

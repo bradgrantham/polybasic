@@ -8,12 +8,27 @@ the design, the phases and the decisions.
 | | SDL3 host | Griffin | Griffin Jr. |
 |---|---|---|---|
 | CPU | host | 68000, 12 MHz, no FPU | 68000, 12 MHz, no FPU |
-| RAM for the app | plenty | about 3.5 MB | 842 KB (program + bss + heap) |
-| Toolchain | a C++23 compiler (clang so far) | containerised `apps/m68k-g++`, C++23, newlib | `m68k-unknown-elf` GCC, newlib; SDK builds C only today |
-| Console | terminal | firmware console via TRAP #15 | BIOS console syscalls |
+| RAM for the app | plenty | about 3.5 MB | 842 KB (program + bss + heap + a 16 KB stack) |
+| Toolchain | a C++23 compiler (clang so far) | containerised `apps/m68k-g++`, C++23, newlib | `m68k-unknown-elf` GCC 15.2 with `g++` and libstdc++ (crosstool-NG, `~/x-tools`), newlib; SDK builds C only today |
+| Console | terminal | firmware console via TRAP #15 | BIOS console syscalls via TRAP #15: 53x24 text on video page 0, PS/2 keyboard |
 | Graphics | SDL3 window, or PNG files without it | ENGINE display lists, app-owned | memory-mapped 320x240 RGB332, two pages, no drawing syscalls |
 
 The smallest machine sets the rules for the core.
+
+The Griffin Jr. column was checked against the SDK in `~/trees/other-m68k` on 2026-11-19
+(`sdk/README.md`, `sdk/Makefile`, `generated/user.ld`, `generated/syscalls.h`). Points that
+matter for phase 2a:
+
+- The user region is 0x8000-0xDA7FF. `sbrk` stops 16 KB below the top, which is the stack.
+  Framebuffer page 1 (75 KB) is free RAM for a program that does not double buffer.
+- The SDK's `crt0.S` does not run static constructors (no `crti`/`crtn`, no `.init_array`
+  walk), and `sdk/user.ld` has no `.init_array` section. The core and msbasic have none today.
+- The console is the screen and PS/2 keyboard only. The emulator's stdout is serial port A, not
+  the console; a test either reads the screen with `--text-dump` and types with `--type`, or
+  the platform module talks to `/dev/ttya`.
+- Files are on C: (768 KB flash volume) and D: (SD card) through newlib `fopen` or `sys_open`.
+- Time is `sys_ticks` (frames, about 60 Hz) and `sys_sleep_ms`; `clock()` advances in whole
+  frames.
 
 Recovered Apple II programs available as a test corpus (the unpacked disk collection, a separate
 tree):
