@@ -1,0 +1,31 @@
+                     BIORHYTHM
+
+BIRTH DATE
+  YEAR, MONTH, DAY? 1978,5,16
+FIRST DAY OF THE CHART
+  YEAR, MONTH, DAY? 1978,13,1
+THAT IS NOT A DATE.
+FIRST DAY OF THE CHART
+  YEAR, MONTH, DAY? 2026,2,20
+HOW MANY DAYS (1 TO 60)? 14
+
+DAYS LIVED BY THE FIRST DAY: 17447 
+
+P = PHYSICAL, 23 DAYS   E = EMOTIONAL, 28 DAYS
+I = INTELLECTUAL, 33 DAYS   * = MORE THAN ONE
+
+DATE   LOW                 0                HIGH
+ 2/20   I          P       !           E        
+ 2/21  I      P            !               E    
+ 2/22  I   P               !                 E  
+ 2/23   *                  !                  E 
+ 2/24  P I                 !                   E
+ 2/25  P   I               !                  E 
+ 2/26    P   I             !                 E  
+ 2/27       P   I          !               E    
+ 2/28            P  I      !           E        
+ 3/01                 PI   !        E           
+ 3/02                      *   E                
+ 3/03                      E   IP               
+ 3/04                  E   !      I  P          
+ 3/05             E        !          I   P     

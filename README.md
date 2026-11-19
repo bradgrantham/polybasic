@@ -25,6 +25,7 @@ SDK, firmware and emulator built, and its cross toolchain in `~/x-tools`:
 make griffinjr           # build/griffinjr/BASIC.ELF, to copy onto C: or the SD card
 make test-griffinjr      # run the msbasic tests in the Griffin Jr. emulator
 make -C platform/griffinjr bench    # time the loop benchmarks in tests/bench
+make -C platform/griffinjr sdcard   # build/griffinjr/sd.img: a card (D:) with BASIC and programs
 ```
 
 On the machine, `basic` at the monitor's prompt gives direct mode and `basic PROG.BAS` runs a

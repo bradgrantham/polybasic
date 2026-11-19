@@ -3,6 +3,7 @@
 #   make -C platform/griffinjr            build
 #   make -C platform/griffinjr test       run the phase 1 tests in the emulator
 #   make -C platform/griffinjr bench      time the loop benchmarks in the emulator
+#   make -C platform/griffinjr sdcard     build/griffinjr/sd.img, a card with programs on it
 #
 # Needs the Griffin Jr. tree (SDK, firmware and emulator, all built: `make all`
 # there) and its cross toolchain.
@@ -60,7 +61,20 @@ test: $(B)/basic.elf
 bench: $(B)/basic.elf
 	$(TOP)/tests/run-griffinjr.sh --bench
 
+# An SD card image (D:) with the interpreter, some programs and a README.
+# mkimage.sh makes the image afresh each time.
+CARD_MB ?= 64
+CARD_PROGRAMS = startrek lunar life 3dplot sine sinejr mandel biorhythm adventure fizzbuzz
+CARD_FILES = $(B)/card/BASIC.ELF $(B)/card/README.TXT \
+             $(foreach p,$(CARD_PROGRAMS),$(B)/card/$(shell echo $(p).bas | tr '[:lower:]' '[:upper:]'))
+sdcard: $(B)/basic.elf
+	@mkdir -p $(B)/card
+	cp $(B)/BASIC.ELF sdcard/README.TXT $(B)/card/
+	for p in $(CARD_PROGRAMS); do \
+	    cp $(TOP)/tests/programs/$$p.bas $(B)/card/$$(echo $$p.bas | tr '[:lower:]' '[:upper:]'); done
+	sh $(JR)/fw/test/mkimage.sh $(B)/sd.img $(CARD_MB) $(CARD_FILES)
+
 clean:
 	rm -rf $(B)
 
-.PHONY: all test bench clean
+.PHONY: all test bench sdcard clean

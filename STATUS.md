@@ -14,10 +14,10 @@ What exists and what comes next. The phases are defined in [PLAN.md](PLAN.md).
 | 6 | Integer BASIC front end | Not started |
 | 7 | Griffin video pack; 6502 core | Not started; each needs a design |
 
-`make test` runs 41 tests and all pass: on a Mac built with clang, against SDL3 and with
+`make test` runs 45 tests and all pass: on a Mac built with clang, against SDL3 and with
 `SDL3=no`; on Linux (x86-64) built with GCC 13.3 with `SDL3=no`, where they also pass under
 `-fsanitize=address,undefined`, and against SDL 3.4.20 (built from source into `~/.local`; the
-window opened on a GNOME desktop through XWayland). `make test-griffinjr` runs the 14
+window opened on a GNOME desktop through XWayland). `make test-griffinjr` runs the 18
 msbasic tests on Griffin Jr. in its emulator and all pass. Nothing exists yet for Griffin.
 
 ## Phase 1: core and msbasic (done)
@@ -56,13 +56,23 @@ toolchain (`m68k-unknown-elf` GCC 15.2) against the SDK in `~/trees/other-m68k`.
   and a C++ rule). The interpreter still has no static constructors.
 - **Tests** (`tests/run-griffinjr.sh`, `make test-griffinjr`): each test boots the emulator with
   the interpreter and the programs on a C: volume, types `basic -s --marks ...` at the monitor,
-  and feeds the test's input down the serial port. All 14 msbasic tests (`tests/programs` and
+  and feeds the test's input down the serial port. All 18 msbasic tests (`tests/programs` and
   `tests/lang`) give byte for byte the output the host is held to, the `SIN`, `COS` and `SQR`
   ones included. The whole run takes about 3 seconds.
 - **Checked by hand in the emulator:** on the video console, the prompt, entering lines, `LIST`,
   `RUN`, `PRINT FRE(0)`, `LOAD "SINE.BAS"` and `QUIT`; on the serial console, Backspace and
   CR LF line ends. Not tried: Backspace and Ctrl-C on the video console, `SAVE`, D:, and real
   hardware.
+
+- **A card image** (`make -C platform/griffinjr sdcard` gives `build/griffinjr/sd.img`, 64 MB
+  FAT32): the interpreter, a `README.TXT` and ten programs. Tried as D: in the emulator: `dir`,
+  `basic SINEJR.BAS` and the start of `basic ADVENTURE.BAS` on the video console.
+
+Four programs were written for the card and are tests on both machines (so 18 msbasic tests
+now, where phase 1 had 14): `mandel` (the Mandelbrot set in characters; 56 seconds on Griffin
+Jr.), `biorhythm`, `adventure` (a seven-room text adventure) and `sinejr` (Ahl's Sine Wave
+narrowed to 53 columns). The other Ahl programs are wider than Griffin Jr.'s 53 columns in
+places and wrap.
 
 Size, at `-O2 -fno-ivopts` (the default):
 
