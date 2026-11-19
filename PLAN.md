@@ -23,6 +23,10 @@ matter for phase 2a:
   Framebuffer page 1 (75 KB) is free RAM for a program that does not double buffer.
 - The SDK's `crt0.S` does not run static constructors (no `crti`/`crtn`, no `.init_array`
   walk), and `sdk/user.ld` has no `.init_array` section. The core and msbasic have none today.
+  Griffin already does this and is the model if Griffin Jr. needs it: `apps/lib/app.ld` keeps
+  `.init_array`/`.fini_array` between the `__init_array_start`/`_end` symbols, and
+  `apps/lib/crt0.s` calls newlib's `__libc_init_array` before `main` and supplies empty
+  `_init`/`_fini` (the firmware's own `linker.ld` and `crt0.s` do the same for the ROM).
 - The console is the screen and PS/2 keyboard only. The emulator's stdout is serial port A, not
   the console; a test either reads the screen with `--text-dump` and types with `--type`, or
   the platform module talks to `/dev/ttya`.
