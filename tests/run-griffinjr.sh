@@ -97,6 +97,8 @@ for t in $tests; do
     name=$(basename "$base")
     args=
     if [ -f "$base.args" ]; then args=$(cat "$base.args"); fi
+    # The machine starts in griffin; the rest are msbasic programs with no header line.
+    case $t in tests/griffin/*) ;; *) args="-m $args" ;; esac
     case $t in
         *.cmd) input=$t; prog= ;;
         *) input=$base.in; prog=$(basename "$t" | tr '[:lower:]' '[:upper:]') ;;

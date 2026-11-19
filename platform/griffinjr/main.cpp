@@ -2,11 +2,13 @@
 // serial port A, files on C: and D:, the framebuffer, the sound stream, the
 // joystick port, and the command line.
 //
-// usage: basic [-g] [-s] [--marks] [--time] [--break-after N] [--no-sleep] [program.bas]
+// usage: basic [-m] [-g] [-s] [--marks] [--time] [--break-after N] [--no-sleep] [program.bas]
 //
-//   -g    start in the griffin dialect (long names, graphics and sound);
-//         "--dialect griffin" says the same.  A program whose first line is
-//         REM GRIFFIN BASIC selects it by itself.
+//   The dialect is griffin (long names, graphics and sound) unless a program
+//   file's first line names another: REM MICROSOFT BASIC.
+//   -m    msbasic whatever a file's first line says, for listings that run
+//         keywords into names (GOTO100); "--dialect msbasic" says the same.
+//   -g    griffin whatever a file's first line says; "--dialect griffin".
 //   -s    use serial port A (38400 8N1) as the console instead of the screen
 //         and keyboard.  Input is echoed and Ctrl-D ends the input.  The
 //         emulator's standard output is this port, which is how
@@ -400,14 +402,19 @@ int main(int argc, char **argv)
     using namespace basic;
     const char *program = nullptr;
     bool timed = false;
-    bool griffin = false;
+    int dialect = 1;              // griffin
+    bool locked = false;
 
     for(int k = 1; k < argc; k++) {
         if(strcmp(argv[k], "-s") == 0) {
             serial = true;
-        } else if(strcmp(argv[k], "-g") == 0
-            || (strcmp(argv[k], "--dialect") == 0 && k + 1 < argc && strcmp(argv[++k], "griffin") == 0)) {
-            griffin = true;
+        } else if(strcmp(argv[k], "-g") == 0 || strcmp(argv[k], "-m") == 0) {
+            dialect = argv[k][1] == 'g';
+            locked = true;
+        } else if(strcmp(argv[k], "--dialect") == 0 && k + 1 < argc
+            && (strcmp(argv[k + 1], "griffin") == 0 || strcmp(argv[k + 1], "msbasic") == 0)) {
+            dialect = argv[++k][0] == 'g';
+            locked = true;
         } else if(strcmp(argv[k], "--time") == 0) {
             timed = true;
         } else if(strcmp(argv[k], "--marks") == 0) {
@@ -417,7 +424,7 @@ int main(int argc, char **argv)
         } else if(strcmp(argv[k], "--no-sleep") == 0) {
             no_sleep = true;
         } else if(argv[k][0] == '-') {
-            say("usage: basic [-g] [-s] [--marks] [--time] [--break-after N] [--no-sleep] [program.bas]\n");
+            say("usage: basic [-m] [-g] [-s] [--marks] [--time] [--break-after N] [--no-sleep] [program.bas]\n");
             return 2;
         } else {
             program = argv[k];
@@ -426,8 +433,8 @@ int main(int argc, char **argv)
 
     if(marks) { sys_serial_putc(2); }
     static Interp in;
-    init(in, dialects[griffin ? 1 : 0]);
-    in.dialect_locked = griffin;
+    init(in, dialects[dialect]);
+    in.dialect_locked = locked;
     if(!serial) {
         static struct con_info ci;
         if(sys_con_info(&ci) == 0 && ci.cols > 0) { in.width = static_cast<int>(ci.cols); }

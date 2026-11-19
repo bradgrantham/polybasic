@@ -3,13 +3,18 @@ BASIC for Griffin Jr.
   D:                     switch to the card
   basic                  direct mode; QUIT returns to the monitor
   basic STARTREK.BAS     run a program
-  basic -g               direct mode in Griffin BASIC (graphics, sound)
+  basic -m               direct mode in Microsoft BASIC (see below)
   basic -s               use serial port A (38400 8N1) as the console
 
 In direct mode: LOAD "LUNAR.BAS", RUN, LIST, NEW, SAVE "NAME.BAS".
 Ctrl-C stops a running program.
 
-Programs
+BASIC here is Griffin BASIC: long names, graphics and sound, and
+keywords that must stand alone (GOTO 100, not GOTO100). A file whose
+first line is REM MICROSOFT BASIC runs as Microsoft BASIC, where
+GOTO100 works; so does anything under basic -m.
+
+Programs (Microsoft BASIC)
 
   STARTREK.BAS   Super Star Trek (1978). Wider than the screen in places.
   LUNAR.BAS      Lunar lander. Wider than the screen in places.

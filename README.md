@@ -30,7 +30,8 @@ make -C platform/griffinjr sdcard   # build/griffinjr/sd.img: a card (D:) with B
 
 On the machine, `basic` at the monitor's prompt gives direct mode and `basic PROG.BAS` runs a
 program; `basic -s` uses serial port A (38400 8N1) as the console instead of the screen and
-keyboard.
+keyboard. The dialect there is griffin unless the file's first line is `REM MICROSOFT BASIC` or
+`basic -m` is given.
 
 ## Use
 

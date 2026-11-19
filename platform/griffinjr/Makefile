@@ -63,7 +63,8 @@ bench: $(B)/basic.elf
 	$(TOP)/tests/run-griffinjr.sh --bench
 
 # An SD card image (D:) with the interpreter, some programs and a README.
-# mkimage.sh makes the image afresh each time.
+# mkimage.sh makes the image afresh each time.  The msbasic programs get a
+# REM MICROSOFT BASIC first line, as the machine starts in griffin.
 CARD_MB ?= 64
 CARD_PROGRAMS = startrek lunar life 3dplot sine sinejr mandel biorhythm adventure fizzbuzz
 CARD_DEMOS = bounce rosette music
@@ -73,7 +74,8 @@ sdcard: $(B)/basic.elf
 	@mkdir -p $(B)/card
 	cp $(B)/BASIC.ELF sdcard/README.TXT $(B)/card/
 	for p in $(CARD_PROGRAMS); do \
-	    cp $(TOP)/tests/programs/$$p.bas $(B)/card/$$(echo $$p.bas | tr '[:lower:]' '[:upper:]'); done
+	    { echo "REM MICROSOFT BASIC"; cat $(TOP)/tests/programs/$$p.bas; } \
+	        > $(B)/card/$$(echo $$p.bas | tr '[:lower:]' '[:upper:]'); done
 	for p in $(CARD_DEMOS); do \
 	    cp $(TOP)/demos/$$p.bas $(B)/card/$$(echo $$p.bas | tr '[:lower:]' '[:upper:]'); done
 	sh $(JR)/fw/test/mkimage.sh $(B)/sd.img $(CARD_MB) $(CARD_FILES)

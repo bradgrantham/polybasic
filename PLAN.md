@@ -214,6 +214,9 @@ Small changes to the unpacker (the disk collection's `_tools`) so the corpus fee
   first drawing statement; the console comes back when the program stops and a key is pressed.
 - **Sound:** three square-wave voices; `SOUND`, `BEEP` and `PLAY` with GW-BASIC/MSX music
   strings, played in the background from the BIOS audio stream, not from an interrupt of ours.
+- **Griffin Jr. default dialect:** griffin, in direct mode and for a file with no header line.
+  A first line of `REM MICROSOFT BASIC`, or `basic -m`, gives msbasic; the card's msbasic
+  programs get that line when the image is built.
 - **Tests on Griffin Jr.** run in its emulator with the interpreter's console on serial port A
   (`basic -s`), which is the emulator's standard input and output, so they compare against the
   same expected output as the host.
@@ -223,21 +226,19 @@ Small changes to the unpacker (the disk collection's `_tools`) so the corpus fee
 1. **Griffin Jr. size target.** The first measurement is 136 KB of the 842 KB (130 KB of code at
    `-O2`, 95 KB at `-Os`; `STATUS.md` has the table). A target, and whether to prefer speed or
    size, is to be agreed.
-2. **Griffin Jr. direct mode** starts in msbasic unless `basic -g` is given; a loaded file's
-   header line picks its dialect. The default could be griffin.
-3. **Text while a picture is shown.** `PRINT` goes to the hidden text screen. It could instead
+2. **Text while a picture is shown.** `PRINT` goes to the hidden text screen. It could instead
    be drawn on the picture, or the screen could be split.
-4. **How `gfx` and a Griffin video pack combine** in one dialect is still undecided: a dialect
+3. **How `gfx` and a Griffin video pack combine** in one dialect is still undecided: a dialect
    has one `Machine`.
-5. **Ahl listings:** more of them would widen the msbasic tests; a source for the files is needed.
-6. **RND seeding:** `RND` currently gives the same sequence every run (as the original machines did,
+4. **Ahl listings:** more of them would widen the msbasic tests; a source for the files is needed.
+5. **RND seeding:** `RND` currently gives the same sequence every run (as the original machines did,
    and so tests are repeatable); `--randomize` changes that. The default could be flipped.
-7. **Applesoft keyboard input is upper-cased**, as on an Apple II or II+, so `IF A$ = "Y"` works
+6. **Applesoft keyboard input is upper-cased**, as on an Apple II or II+, so `IF A$ = "Y"` works
    when typing in lower case. Programs that expect lower-case text entry would need a switch.
-8. **`CHAIN` (ProDOS)** starts the named program afresh; it should keep the variables.
-9. **Pacing in the window.** A program in the graphics window is slowed to roughly an Apple's
+7. **`CHAIN` (ProDOS)** starts the named program afresh; it should keep the variables.
+8. **Pacing in the window.** A program in the graphics window is slowed to roughly an Apple's
    speed (a millisecond per loop iteration and per screen statement) so that delay loops and
    animation behave; `--fast` turns that off. The charges are guesses, and the default could be
    the other way round.
-10. **Hi-res line drawing** uses Bresenham's algorithm, not the ROM's, so slanted lines can differ
+9. **Hi-res line drawing** uses Bresenham's algorithm, not the ROM's, so slanted lines can differ
    from a real Apple's by a dot. Matching the ROM exactly needs its listing.
