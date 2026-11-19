@@ -16,7 +16,8 @@ What exists and what comes next. The phases are defined in [PLAN.md](PLAN.md).
 
 `make test` runs 41 tests and all pass: on a Mac built with clang, against SDL3 and with
 `SDL3=no`; on Linux (x86-64) built with GCC 13.3 with `SDL3=no`, where they also pass under
-`-fsanitize=address,undefined`. The SDL3 window has not been built on Linux. The interpreter has
+`-fsanitize=address,undefined`, and against SDL 3.4.20 (built from source into `~/.local`; the
+window opened on a GNOME desktop through XWayland). The interpreter has
 not been built for a 68000, though `core/` and the msbasic dialect compile without warnings
 with the Griffin Jr. `m68k-unknown-elf-g++` 15.2 (about 32 KB of text at `-Os`, unlinked).
 
