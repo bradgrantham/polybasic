@@ -1,4 +1,4 @@
-# Host (macOS / POSIX) build.  The 68000 builds get their own makefiles under
+# Host (POSIX, optionally SDL3) build.  The 68000 builds get their own makefiles under
 # platform/.
 
 CXX      ?= c++

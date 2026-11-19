@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Turn apple2e's font image into machines/apple2/font.h.
 
-usage: tools/mkfont.py ~/trees/apple2e/apple2font.ppm > machines/apple2/font.h
+usage: tools/mkfont.py apple2font.ppm > machines/apple2/font.h
 
 The image is a binary PPM holding 96 glyphs (ASCII 32..127), each 7 wide and
 8 tall, packed left to right, top to bottom.  Each output byte is one glyph

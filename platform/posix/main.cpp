@@ -1,4 +1,4 @@
-// macOS / POSIX platform: terminal console, files, and the command line.
+// POSIX host platform: terminal console, files, and the command line.
 //
 // usage: basic [options] [program.bas]
 //

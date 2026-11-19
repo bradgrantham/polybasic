@@ -1,8 +1,8 @@
 # griffin-basic
 
 A BASIC interpreter built from separable modules: a core runtime, one front end per dialect, and
-one platform module per machine. See [PLAN.md](PLAN.md) for the design, the phases, and the current
-status.
+one platform module per machine. See [CLAUDE.md](CLAUDE.md) for the goals, [PLAN.md](PLAN.md) for
+the design and the phases, and [STATUS.md](STATUS.md) for what is done.
 
 ## Build and test
 
@@ -15,7 +15,7 @@ Needs a C++23 compiler. SDL3 (found with `pkg-config`) is used for the graphics 
 it, or with `make SDL3=no`, everything else still builds.
 
 ```
-make corpus     # parse every recovered Applesoft program in ../../apple2-disks-unpacked
+make corpus CORPUS=DIR   # parse every recovered Applesoft program in an unpacked disk collection
 ```
 
 ## Use
@@ -73,7 +73,7 @@ Ctrl-C interrupts a running program.
 | `machines/apple2/graphics.cpp` | lo-res and hi-res statements, shape tables |
 | `machines/apple2/video.cpp` | screen memory to a picture; `font.h` is its character set |
 | `machines/common/png.cpp` | PNG writer |
-| `platform/posix/main.cpp` | macOS / POSIX terminal platform and command line |
+| `platform/posix/main.cpp` | POSIX host platform (terminal, files) and command line |
 | `platform/posix/display_sdl.cpp` | the graphics window (SDL3); `display_none.cpp` without it |
 | `tests/` | `run.sh`; `programs/` and `lang/` (msbasic), `applesoft/`, `graphics/`, `corpus/` (recovered programs) |
 | `tools/corpus.py` | checks the interpreter against the whole recovered collection |
