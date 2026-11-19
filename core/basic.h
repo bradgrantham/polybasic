@@ -133,6 +133,11 @@ struct Frame {
     uint16_t slot;                // F_FOR: loop variable
     uint32_t pc;                  // F_FOR: loop body; F_GOSUB: return address
     double limit, step;
+    // F_FOR with a whole-number step: the loop can be counted in integers for
+    // as long as the variable holds one, with the limit rounded towards the
+    // start.  This keeps floating point (soft-float on the 68000) out of NEXT.
+    bool whole;
+    int32_t ilimit, istep;
 };
 struct FnFrame { Value saved; uint16_t param; uint32_t ret; };
 struct Field { uint32_t off; uint32_t len; };

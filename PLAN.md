@@ -166,7 +166,7 @@ Each phase ends with something runnable and a test that proves it.
 
    *Check, for each:* it boots to a prompt and runs the phase 1 programs in its emulator; binary
    size and a loop benchmark are recorded, with a size target for Griffin Jr. agreed after the
-   first measurement. **2a is next.**
+   first measurement. **2a is done but for agreeing the size target; 2b is next.**
 3. **Applesoft, text only.** Screen statements (`HOME`, `HTAB`, `VTAB`, `INVERSE`, `NORMAL`, `TEXT`,
    `SPEED=`), `GET`, `ASC`, `RESTORE`, `ONERR`/`RESUME`/`POP`, `%` variables, Applesoft semantics, and
    the DOS command layer for text files and program chaining.
@@ -207,11 +207,16 @@ Small changes to the unpacker (the disk collection's `_tools`) so the corpus fee
 - **Griffin dialect:** its own dialect, with long names and keywords that need delimiters.
 - **`gfx` statements:** derived from the table above.
 - **Phase 1 tests:** the old interpreter's test programs, copied into `tests/programs`.
+- **Griffin Jr. toolchain:** the SDK's own `m68k-unknown-elf` GCC in `~/x-tools`.
+- **Tests on Griffin Jr.** run in its emulator with the interpreter's console on serial port A
+  (`basic -s`), which is the emulator's standard input and output, so they compare against the
+  same expected output as the host.
 
 ## Decisions still open
 
-1. **Griffin Jr. toolchain:** the SDK's own `m68k-unknown-elf` GCC, or Griffin's containerised
-   toolchain.
+1. **Griffin Jr. size target.** The first measurement is 136 KB of the 842 KB (130 KB of code at
+   `-O2`, 95 KB at `-Os`; `STATUS.md` has the table). A target, and whether to prefer speed or
+   size, is to be agreed.
 2. **Ahl listings:** more of them would widen the msbasic tests; a source for the files is needed.
 3. **RND seeding:** `RND` currently gives the same sequence every run (as the original machines did,
    and so tests are repeatable); `--randomize` changes that. The default could be flipped.

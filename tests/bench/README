@@ -1,0 +1,6 @@
+Loop benchmarks for the 68000 builds; not part of `make test`.
+
+    make -C platform/griffinjr bench
+
+runs each on Griffin Jr. in its emulator with --time, which prints how long
+the program ran in frames.  The results are recorded in STATUS.md.

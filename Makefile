@@ -1,5 +1,5 @@
-# Host (POSIX, optionally SDL3) build.  The 68000 builds get their own makefiles under
-# platform/.
+# Host (POSIX, optionally SDL3) build.  The 68000 builds have their own makefiles under
+# platform/; `make griffinjr` and `make test-griffinjr` call the Griffin Jr. one.
 
 CXX      ?= c++
 CXXFLAGS ?= -std=c++23 -O2 -g -Wall -Wextra -fno-exceptions -fno-rtti
@@ -44,7 +44,13 @@ CORPUS ?= ../../apple2-disks-unpacked
 corpus: $(BUILD)/basic
 	python3 tools/corpus.py $(CORPUS) --basic $(BUILD)/basic
 
+# The Griffin Jr. build and its tests in the emulator (see platform/griffinjr/Makefile).
+griffinjr:
+	$(MAKE) -C platform/griffinjr
+test-griffinjr:
+	$(MAKE) -C platform/griffinjr test
+
 clean:
 	rm -rf $(BUILD)
 
-.PHONY: all test corpus clean
+.PHONY: all test corpus griffinjr test-griffinjr clean

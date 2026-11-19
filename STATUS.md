@@ -5,8 +5,8 @@ What exists and what comes next. The phases are defined in [PLAN.md](PLAN.md).
 | Phase | | State |
 |---|---|---|
 | 1 | Core and msbasic on a host terminal | Done |
-| 2a | Griffin Jr. build, console only | **Next**; not started |
-| 2b | Griffin build, console only; griffin dialect | Not started |
+| 2a | Griffin Jr. build, console only | Done, except that a size target is not agreed yet |
+| 2b | Griffin build, console only; griffin dialect | **Next**; not started |
 | 3 | Applesoft, text only, with the DOS command layer | Done |
 | 4a | Apple II graphics: window and PNG | Done |
 | 4b | `gfx` extension pack on an SDL3 host and Griffin Jr. | Not started; needs 2a and the griffin dialect |
@@ -17,11 +17,8 @@ What exists and what comes next. The phases are defined in [PLAN.md](PLAN.md).
 `make test` runs 41 tests and all pass: on a Mac built with clang, against SDL3 and with
 `SDL3=no`; on Linux (x86-64) built with GCC 13.3 with `SDL3=no`, where they also pass under
 `-fsanitize=address,undefined`, and against SDL 3.4.20 (built from source into `~/.local`; the
-window opened on a GNOME desktop through XWayland). The interpreter has
-not been built for a 68000, though `core/` and the msbasic dialect compile without warnings
-with the Griffin Jr. `m68k-unknown-elf-g++` 15.2 (about 32 KB of text at `-Os`, unlinked).
-
-Nothing exists yet for the 68000: no platform module, no makefile, no size or speed measurement.
+window opened on a GNOME desktop through XWayland). `make test-griffinjr` runs the 14
+msbasic tests on Griffin Jr. in its emulator and all pass. Nothing exists yet for Griffin.
 
 ## Phase 1: core and msbasic (done)
 
@@ -41,6 +38,75 @@ Differences from the old `basic.cpp`, all deliberate:
 
 Kept from the old interpreter: `FOR` skips its body when the range is empty (Microsoft 8K BASIC ran
 it once), and `WAIT n` pauses for n milliseconds.
+
+## Phase 2a: Griffin Jr., console only (done; size target open)
+
+The msbasic dialect as a program for the Griffin Jr. BIOS monitor, built with the SDK's own
+toolchain (`m68k-unknown-elf` GCC 15.2) against the SDK in `~/trees/other-m68k`.
+
+- **Platform module** (`platform/griffinjr/main.cpp`): the BIOS console (53x24 text, PS/2
+  keyboard) with its own line editor, type-ahead and Ctrl-C; `LOAD` and `SAVE` on C: and D:;
+  `WAIT`. `basic` at the monitor's prompt gives direct mode, `basic PROG.BAS` runs a program
+  and returns. `-s` puts the console on serial port A instead. The module uses BIOS calls only;
+  no display yet (`plat_display_open` returns false).
+- **Makefile** (`platform/griffinjr/Makefile`, or `make griffinjr` at the top): compiles `core/`,
+  `dialects/msfamily.cpp`, `dialects/msbasic.cpp` and the module, and links with the SDK's
+  `crt0.o`, `user.ld` and `libsys.a`, without libstdc++.
+- **C++ in the SDK build** was done in the SDK itself (its commit `311259e`: static constructors
+  and a C++ rule). The interpreter still has no static constructors.
+- **Tests** (`tests/run-griffinjr.sh`, `make test-griffinjr`): each test boots the emulator with
+  the interpreter and the programs on a C: volume, types `basic -s --marks ...` at the monitor,
+  and feeds the test's input down the serial port. All 14 msbasic tests (`tests/programs` and
+  `tests/lang`) give byte for byte the output the host is held to, the `SIN`, `COS` and `SQR`
+  ones included. The whole run takes about 3 seconds.
+- **Checked by hand in the emulator:** on the video console, the prompt, entering lines, `LIST`,
+  `RUN`, `PRINT FRE(0)`, `LOAD "SINE.BAS"` and `QUIT`; on the serial console, Backspace and
+  CR LF line ends. Not tried: Backspace and Ctrl-C on the video console, `SAVE`, D:, and real
+  hardware.
+
+Size, at `-O2 -fno-ivopts` (the default):
+
+| | bytes |
+|---|---|
+| text | 130,072 |
+| data | 1,760 |
+| bss | 4,240 |
+| `BASIC.ELF` on the volume (stripped) | 140,352 |
+
+That leaves about 706 KB of the 842 KB for the heap and the 16 KB stack. At `-Os` the text is
+95,168 bytes, of which the interpreter's own objects are about 33 KB; the rest is newlib
+(`printf`, `strtod`, the maths library) and soft-float. No size target is agreed yet.
+
+Loop benchmarks (`tests/bench`, `make -C platform/griffinjr bench`), in frames of 1/60 s as
+counted by the BIOS in the emulator, at 12 MHz:
+
+| Program | What it does | `-O2 -fno-ivopts` | `-Os` |
+|---|---|---|---|
+| `forloop` | empty `FOR`/`NEXT`, 20,000 times | 98 (1.6 s) | 111 |
+| `intmath` | integer arithmetic and an `IF`, 5,000 times | 293 (4.9 s) | 464 |
+| `float` | floating-point arithmetic, 2,000 times | 373 (6.2 s) | 481 |
+| `trig` | `SIN`, `COS`, `SQR`, 500 times | 704 (11.7 s) | 743 |
+| `gosub` | `GOSUB`, an array, a `GOTO` loop, 3,000 times | 476 (7.9 s) | 712 |
+| `strings` | string building and slicing, 1,000 times | 136 (2.3 s) | 194 |
+
+That is roughly 12,000 empty loop iterations or 3,000 simple integer statements a second.
+
+Two things found on the way:
+
+- **`FOR`/`NEXT` counted in floating point,** which on the 68000 is soft-float. A loop with a
+  whole-number step is now counted in integers while its variable holds one (`Frame::whole` in
+  `core/basic.h`). The empty loop went from 569 frames to 111 at `-Os`. This is a core change
+  and the host tests still pass.
+- **GCC 15.2 for the 68000 gets `format_number` wrong at `-O2`:** a digit after the decimal
+  point comes out as another character (`38812.5` printed as `38812.` and a blank). `-O1` and
+  `-Os` are right, and so is `-O2 -fno-ivopts`, with only `core/number.cpp` compiled
+  differently each time. I think this is a compiler bug in that optimisation pass rather than
+  a fault in the source, which is clean under the host's undefined-behaviour sanitizer, but the
+  generated code was not read far enough to prove it. The tests are what guard against others
+  like it.
+
+A profile (instruction counts from the emulator's `--trace`) puts 84 % of the integer
+benchmark inside `execute` itself, spread over the operations, with no single hot spot left.
 
 ## Phase 3: Applesoft, text only (done)
 

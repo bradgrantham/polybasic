@@ -18,6 +18,19 @@ it, or with `make SDL3=no`, everything else still builds.
 make corpus CORPUS=DIR   # parse every recovered Applesoft program in an unpacked disk collection
 ```
 
+The Griffin Jr. build needs that machine's tree (`JR`, by default `~/trees/other-m68k`) with its
+SDK, firmware and emulator built, and its cross toolchain in `~/x-tools`:
+
+```
+make griffinjr           # build/griffinjr/BASIC.ELF, to copy onto C: or the SD card
+make test-griffinjr      # run the msbasic tests in the Griffin Jr. emulator
+make -C platform/griffinjr bench    # time the loop benchmarks in tests/bench
+```
+
+On the machine, `basic` at the monitor's prompt gives direct mode and `basic PROG.BAS` runs a
+program; `basic -s` uses serial port A (38400 8N1) as the console instead of the screen and
+keyboard.
+
 ## Use
 
 ```
@@ -75,7 +88,9 @@ Ctrl-C interrupts a running program.
 | `machines/common/png.cpp` | PNG writer |
 | `platform/posix/main.cpp` | POSIX host platform (terminal, files) and command line |
 | `platform/posix/display_sdl.cpp` | the graphics window (SDL3); `display_none.cpp` without it |
+| `platform/griffinjr/` | Griffin Jr. platform (BIOS console or serial port, files) and its makefile |
 | `tests/` | `run.sh`; `programs/` and `lang/` (msbasic), `applesoft/`, `graphics/`, `corpus/` (recovered programs) |
+| `tests/run-griffinjr.sh` | runs `programs/` and `lang/` on Griffin Jr. in its emulator; `tests/bench/` are its loop benchmarks |
 | `tools/corpus.py` | checks the interpreter against the whole recovered collection |
 | `tools/mkfont.py` | regenerates `font.h` from a font image |
 

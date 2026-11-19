@@ -994,6 +994,16 @@ Halt execute(Interp &in, uint32_t start)
                 f.pc = in.pc + 3;
                 f.limit = lim;
                 f.step = st;
+                f.whole = false;
+                f.ilimit = f.istep = 0;
+                if(st >= -2147483648.0 && st < 2147483648.0 && st == std::floor(st)) {
+                    double whole_limit = st >= 0 ? std::floor(lim) : std::ceil(lim);
+                    if(whole_limit >= -2147483648.0 && whole_limit < 2147483648.0) {
+                        f.whole = true;
+                        f.istep = static_cast<int32_t>(st);
+                        f.ilimit = static_cast<int32_t>(whole_limit);
+                    }
+                }
                 in.ctrl.push(f);
                 in.pc += 3;
                 break;
@@ -1009,18 +1019,18 @@ Halt execute(Interp &in, uint32_t start)
                 in.ctrl.n = k;
                 Frame &f = in.ctrl[k - 1];
                 Value &var = in.vars[f.slot];
-                int32_t istep = static_cast<int32_t>(f.step);
                 int32_t r;
-                if(var.tag == T_INT && istep == f.step
-                    && !__builtin_add_overflow(var.i, istep, &r)) {
+                bool again;
+                if(f.whole && var.tag == T_INT && !__builtin_add_overflow(var.i, f.istep, &r)) {
                     var.i = r;
+                    again = f.istep >= 0 ? r <= f.ilimit : r >= f.ilimit;
                 } else {
-                    double d = num(var) + f.step;
+                    double v = num(var) + f.step;
                     var.tag = T_NUM;
-                    var.d = d;
+                    var.d = v;
+                    again = f.step >= 0 ? v <= f.limit : v >= f.limit;
                 }
-                double v = num(var);
-                if(f.step >= 0 ? v <= f.limit : v >= f.limit) {
+                if(again) {
                     break_check(in);
                     in.pc = f.pc;
                 } else {
