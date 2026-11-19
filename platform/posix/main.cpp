@@ -11,13 +11,16 @@
 //   --scratch DIR     Applesoft: where files the program writes are kept;
 //                     without it the disk is write protected
 //   --stream          Applesoft: plain output, never a 40x24 screen
-//   --window          Applesoft: open the graphics window at once (it opens by
+//   --window          Applesoft, Griffin: open the graphics window at once (it opens by
 //                     itself at the first graphics statement, when run from a
 //                     terminal)
-//   --no-window       Applesoft: never open it
-//   --png FILE        Applesoft: write the last picture the program showed to
+//   --no-window       Applesoft, Griffin: never open it
+//   --png FILE        Applesoft, Griffin: write the last picture the program showed to
 //                     FILE; no window unless --window is given too
 //   --fast            Applesoft: in the window, do not slow down to an Apple's pace
+//   --wav FILE        Griffin: write the sound the program made to FILE instead
+//                     of playing it
+//   --no-sound        Griffin: do not use the sound device
 //   --break-after N, --no-sleep    for tests, see below
 //
 // With a program file: load it, run it, exit.  Without: read lines from
@@ -31,6 +34,7 @@
 #include "../../core/basic.h"
 #include "../../core/platform.h"
 #include "../../machines/apple2/apple2.h"
+#include "host.h"
 
 #include <csignal>
 #include <cstdio>
@@ -45,12 +49,14 @@ namespace basic {
 
 extern const Dialect msbasic_dialect;
 extern const Dialect applesoft_dialect;
-const Dialect *const dialects[] = {&msbasic_dialect, &applesoft_dialect, nullptr};
+extern const Dialect griffin_dialect;
+const Dialect *const dialects[] = {&msbasic_dialect, &applesoft_dialect, &griffin_dialect, nullptr};
 
 static volatile sig_atomic_t break_flag;
 static bool echo_input;           // input is not a terminal: show what was read
 
 static void on_sigint(int) { break_flag = 1; }
+void host_break() { break_flag = 1; }
 
 void plat_write(const char *s, uint32_t len)
 {
@@ -78,6 +84,10 @@ static void stop_polling()
 int plat_poll_key()
 {
     fflush(stdout);
+    if(av_window_open()) {
+        plat_fb_update();
+        return plat_display_key();
+    }
     if(!isatty(STDIN_FILENO)) {
         int c = fgetc(stdin);
         return c == EOF ? -2 : c;
@@ -163,7 +173,14 @@ bool plat_break_pending()
 void plat_sleep_ms(uint32_t ms)
 {
     fflush(stdout);
-    if(!no_sleep) { usleep(ms * 1000); }
+    if(no_sleep) { return; }
+    // In slices, so that sound is kept fed and a window stays alive.
+    while(ms > 0) {
+        uint32_t step = ms > 10 ? 10 : ms;
+        av_idle();
+        usleep(step * 1000);
+        ms -= step;
+    }
 }
 
 uint32_t plat_entropy()
@@ -228,6 +245,7 @@ static void usage()
         "usage: basic [--dialect NAME] [--list-dialects] [--randomize] [--check]\n"
         "             [--disk DIR] [--scratch DIR] [--stream]\n"
         "             [--window] [--no-window] [--png FILE] [--fast]\n"
+        "             [--wav FILE] [--no-sound]\n"
         "             [--break-after N] [--no-sleep] [program.bas]\n");
 }
 
@@ -239,6 +257,8 @@ int main(int argc, char **argv)
     const char *disk = nullptr;
     const char *scratch = nullptr;
     const char *png = nullptr;
+    const char *wav = nullptr;
+    bool sound = true;
     bool randomize = false, check = false, stream = false, fast = false;
     int window = 0;
 
@@ -263,6 +283,10 @@ int main(int argc, char **argv)
             fast = true;
         } else if(strcmp(argv[k], "--png") == 0 && k + 1 < argc) {
             png = argv[++k];
+        } else if(strcmp(argv[k], "--wav") == 0 && k + 1 < argc) {
+            wav = argv[++k];
+        } else if(strcmp(argv[k], "--no-sound") == 0) {
+            sound = false;
         } else if(strcmp(argv[k], "--disk") == 0 && k + 1 < argc) {
             disk = argv[++k];
         } else if(strcmp(argv[k], "--scratch") == 0 && k + 1 < argc) {
@@ -299,6 +323,8 @@ int main(int argc, char **argv)
     if(scratch) { mkdir(scratch, 0777); }         // one level; fine if it exists
     apple2_configure(Apple2Options{disk, scratch, stream, check ? -1 : window, check ? nullptr : png, fast});
 
+    av_configure(AvOptions{check ? nullptr : png, check ? nullptr : wav, check ? -1 : window, sound, no_sleep});
+
     signal(SIGINT, on_sigint);
     echo_input = !isatty(STDIN_FILENO);
 
@@ -324,6 +350,7 @@ int main(int argc, char **argv)
         repl(in);
     }
     if(in.dialect->machine) { in.dialect->machine->finish(in); }
+    av_finish();
     if(in.column != 0) { fputc('\n', stdout); }
     fflush(stdout);
     return status;

@@ -57,7 +57,7 @@ enum Op : uint8_t {
     OP_RESUME,        // run the statement that raised the trapped error again
     OP_POPSUB,        // forget the innermost GOSUB
     OP_EXT,           // u16 id, u8 nargs: machine statement
-    OP_EXTFN,         // u16 id, u8 nargs: machine function, pushes a number
+    OP_EXTFN,         // u16 id, u8 nargs: machine function, pushes its result
 };
 
 // Built-in functions for OP_CALL.

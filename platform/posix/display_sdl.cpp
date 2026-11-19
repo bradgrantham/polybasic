@@ -1,6 +1,7 @@
-// The display as an SDL3 window.  (display_none.cpp is linked instead where
-// SDL3 is not installed.)
+// The display as an SDL3 window, and the sound device.  (display_none.cpp is
+// linked instead where SDL3 is not installed.)
 #include "../../core/platform.h"
+#include "host.h"
 
 #include <SDL3/SDL.h>
 
@@ -16,6 +17,8 @@ int fb_width;
 int keys[64];                     // typed and not yet read; a ring
 unsigned key_head, key_tail;
 int flags;
+
+SDL_AudioStream *audio;
 
 void queue_key(int key)
 {
@@ -104,6 +107,35 @@ int plat_display_pump()
 int plat_display_key()
 {
     return key_head != key_tail ? keys[key_head++ % 64] : -1;
+}
+
+bool host_audio_open(int rate)
+{
+    if(audio) { return true; }
+    if(!SDL_InitSubSystem(SDL_INIT_AUDIO)) { return false; }
+    SDL_AudioSpec spec = {SDL_AUDIO_S16, 1, rate};
+    audio = SDL_OpenAudioDeviceStream(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, &spec, nullptr, nullptr);
+    if(!audio) { return false; }
+    SDL_ResumeAudioStreamDevice(audio);
+    return true;
+}
+
+void host_audio_put(const int16_t *samples, int count)
+{
+    if(audio) { SDL_PutAudioStreamData(audio, samples, count * 2); }
+}
+
+int host_audio_queued()
+{
+    return audio ? SDL_GetAudioStreamQueued(audio) / 2 : 0;
+}
+
+void host_audio_close()
+{
+    if(audio) {
+        SDL_DestroyAudioStream(audio);
+        audio = nullptr;
+    }
 }
 
 }  // namespace basic

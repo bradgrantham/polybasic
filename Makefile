@@ -6,9 +6,9 @@ CXXFLAGS ?= -std=c++23 -O2 -g -Wall -Wextra -fno-exceptions -fno-rtti
 BUILD     = build
 
 CORE     = core/exec.cpp core/program.cpp core/number.cpp
-DIALECTS = dialects/msfamily.cpp dialects/msbasic.cpp dialects/applesoft.cpp
+DIALECTS = dialects/msfamily.cpp dialects/msbasic.cpp dialects/applesoft.cpp dialects/griffin.cpp
 MACHINES = machines/apple2/apple2.cpp machines/apple2/graphics.cpp machines/apple2/video.cpp \
-           machines/common/png.cpp
+           machines/common/png.cpp machines/gfx/gfx.cpp machines/gfx/sound.cpp
 
 # The graphics window needs SDL3.  Without it (or with SDL3=no) the build
 # still does graphics, into --png files only.
@@ -20,12 +20,12 @@ SDL_LIBS   := $(shell pkg-config --libs sdl3)
 else
 DISPLAY  = platform/posix/display_none.cpp
 endif
-PLATFORM = platform/posix/main.cpp $(DISPLAY)
+PLATFORM = platform/posix/main.cpp platform/posix/av.cpp $(DISPLAY)
 SOURCES  = $(CORE) $(DIALECTS) $(MACHINES) $(PLATFORM)
 OBJECTS  = $(SOURCES:%.cpp=$(BUILD)/%.o)
 HEADERS  = core/basic.h core/ops.h core/platform.h dialects/msfamily.h \
            machines/apple2/apple2.h machines/apple2/a2internal.h machines/apple2/font.h \
-           machines/common/png.h
+           machines/common/png.h machines/gfx/gfx.h platform/posix/host.h
 
 all: $(BUILD)/basic
 

@@ -34,7 +34,10 @@ struct Keyword {
     // For KW_EXT, KW_HPLOT and KW_EXTFN: the id handed to Machine::ext, and
     // the argument syntax.  In `sig`, N is a numeric expression, S a string
     // expression, ',' a comma, '@' the word AT, and everything after a '?'
-    // may be left out.
+    // may be left out.  "~WORD ...|..." gives alternatives: the first whose
+    // WORD (a bare name, not a keyword) comes next is taken, else the one with
+    // no word.  A function whose sig is "-" takes no arguments and no
+    // parentheses, and one whose text ends in '$' returns a string.
     uint16_t id = 0;
     const char *sig = nullptr;
 };

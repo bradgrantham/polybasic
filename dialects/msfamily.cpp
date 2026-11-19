@@ -185,12 +185,28 @@ struct Parser {
         type = T_NAME;
     }
 
-    // Arguments of a machine statement or function, as its `sig` describes;
-    // returns how many values were compiled.
+    // Arguments of a machine statement or function, as its `sig` describes
+    // (see msfamily.h); returns how many values were compiled.
     uint8_t ext_args(const char *sig, bool in_parens)
     {
         uint8_t n = 0;
-        for(const char *s = sig; s && *s; s++) {
+        const char *s = sig;
+        // Alternatives that start with a word: take the first whose word is
+        // the current token, else the one without a word.
+        while(s && *s == '~') {
+            const char *w = s + 1;
+            uint32_t wl = 0;
+            while(w[wl] >= 'A' && w[wl] <= 'Z') { wl++; }
+            if(type == T_NAME && kind == K_NUM && len == wl && memcmp(name, w, wl) == 0) {
+                next();
+                s = w + wl;
+                break;
+            }
+            while(*s && *s != '|') { s++; }
+            if(!*s) { fail(E_SYNTAX); }
+            s++;
+        }
+        for(; s && *s && *s != '|'; s++) {
             switch(*s) {
                 case '?':
                     if(in_parens ? is_char(')') : at_end()) { return n; }
@@ -198,6 +214,7 @@ struct Parser {
                 case 'N': num_expr(); n++; break;
                 case 'S': need_str(expr()); n++; break;
                 case '@': expect_kw(KW_AT); break;
+                case ' ': case '-': break;
                 default: expect_char(*s); break;
             }
         }
@@ -361,13 +378,17 @@ struct Parser {
         }
         if(is_kw(KW_EXTFN)) {
             const Keyword *k = kwent;
-            bool open = k->text[strlen(k->text) - 1] == '(';
+            char last = k->text[strlen(k->text) - 1];
             next();
-            if(!open) { expect_char('('); }
+            if(k->sig && k->sig[0] == '-') {       // a function with no arguments
+                emit_ext(OP_EXTFN, k->id, 0);
+                return last == '$';
+            }
+            if(last != '(') { expect_char('('); }
             uint8_t n = ext_args(k->sig, true);
             expect_char(')');
             emit_ext(OP_EXTFN, k->id, n);
-            return false;
+            return last == '$';
         }
         if(type == T_KW) {
             for(const FnInfo &f : fn_info) {

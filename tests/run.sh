@@ -10,9 +10,10 @@
 # command-line arguments).  NAME.out is the expected output; --update rewrites
 # it from the current output, which should then be read before it is trusted.
 #
-# Tests in tests/graphics and tests/corpus/pictures also write the screen with
-# --png, and that picture is compared with NAME.png (and should be looked at
-# after an --update).
+# Tests in tests/graphics, tests/corpus/pictures and tests/griffin/pictures
+# also write the screen with --png, and that picture is compared with NAME.png
+# (and should be looked at after an --update).  Tests in tests/griffin/sound
+# write what they played with --wav, compared with NAME.wav (listen to it).
 
 bin=$1
 update=$2
@@ -28,13 +29,19 @@ rm -rf build/scratch              # where Applesoft tests write their files
 mkdir -p build/scratch
 for t in tests/programs/*.bas tests/lang/*.bas tests/lang/*.cmd \
          tests/applesoft/*.bas tests/applesoft/*.cmd tests/corpus/*.bas \
-         tests/graphics/*.bas tests/corpus/pictures/*.bas; do
+         tests/graphics/*.bas tests/corpus/pictures/*.bas \
+         tests/griffin/*.bas tests/griffin/*.cmd tests/griffin/pictures/*.bas \
+         tests/griffin/sound/*.bas; do
     [ -f "$t" ] || continue
     base=${t%.*}
     args=
     if [ -f "$base.args" ]; then args=$(cat "$base.args"); fi
     png=
-    case $t in tests/graphics/*|tests/corpus/pictures/*) png=$base.actual.png; args="$args --png $png" ;; esac
+    wav=
+    case $t in
+        tests/graphics/*|tests/corpus/pictures/*|tests/griffin/pictures/*) png=$base.actual.png; args="$args --png $png" ;;
+        tests/griffin/sound/*) wav=$base.actual.wav; args="$args --wav $wav" ;;
+    esac
     input=/dev/null
     case $t in
         *.cmd) input=$t; prog= ;;
@@ -49,14 +56,18 @@ for t in tests/programs/*.bas tests/lang/*.bas tests/lang/*.cmd \
         mv "$base.actual" "$base.out"
         echo "updated $base.out"
         if [ -n "$png" ]; then mv "$png" "$base.png"; fi
+        if [ -n "$wav" ]; then mv "$wav" "$base.wav"; fi
     elif [ -n "$png" ] && ! cmp -s "$png" "$base.png"; then
         echo "FAIL $t: picture differs: $base.png $png"
+        failed=$((failed + 1))
+    elif [ -n "$wav" ] && ! cmp -s "$wav" "$base.wav"; then
+        echo "FAIL $t: sound differs: $base.wav $wav"
         failed=$((failed + 1))
     elif [ ! -f "$base.out" ]; then
         echo "FAIL $t: no expected output ($base.out); see $base.actual"
         failed=$((failed + 1))
     elif cmp -s "$base.out" "$base.actual"; then
-        rm -f "$base.actual" $png
+        rm -f "$base.actual" $png $wav
     else
         echo "FAIL $t (exit $status): diff $base.out $base.actual"
         failed=$((failed + 1))
