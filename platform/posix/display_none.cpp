@@ -1,0 +1,12 @@
+// The display where there is none: built in place of display_sdl.cpp when
+// SDL3 is not installed.  Graphics still works into memory and --png.
+#include "../../core/platform.h"
+
+namespace basic {
+
+bool plat_display_open(int, int, const char *) { return false; }
+void plat_display_show(const uint32_t *) { }
+int plat_display_pump() { return 0; }
+int plat_display_key() { return -1; }
+
+}  // namespace basic

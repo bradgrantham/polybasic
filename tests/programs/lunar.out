@@ -1,0 +1,65 @@
+                                 LUNAR
+               CREATIVE COMPUTING MORRISTOWN, NEW JERSEY
+
+
+
+THIS IS A COMPUTER SIMULATION OF AN APOLLO LUNAR
+LANDING CAPSULE.
+
+
+THE ON-BOARD COMPUTER HAS FAILED (IT WAS MADE BY
+XEROX) SO YOU HAVE TO LAND THE CAPSULE MANUALLY.
+
+SET BURN RATE OF RETRO ROCKETS TO ANY VALUE BETWEEN
+0 (FREE FALL) AND 200 (MAXIMUM BURN) POUNDS PER SECOND.
+SET NEW BURN RATE EVERY 10 SECONDS.
+
+CAPSULE WEIGHT 32,500 LBS; FUEL WEIGHT 16,500 LBS.
+
+
+
+GOOD LUCK
+
+SEC           MI + FT       MPH           LB FUEL       BURN RATE
+
+ 0             120  0        3600          16500        ? 0
+ 10            109  5016     3636          16500        ? 0
+ 20            99  4224      3672          16500        ? 0
+ 30            89  2904      3708          16500        ? 0
+ 40            79  1056      3744          16500        ? 0
+ 50            68  3960      3780          16500        ? 0
+ 60            58  1056      3816          16500        ? 0
+ 70            47  2904      3852          16500        ? 170
+ 80            37  1435      3545.28       14800        ? 200
+ 90            27  5077      3153.4        12800        ? 200
+ 100           19  4123      2731.26       10800        ? 200
+ 110           12  4330      2274.24       8800         ? 100
+ 120           6  4294       2048.92       7800         ? 50
+ 130           1  1364       1950.19       7300         ? 20
+ON MOON AT 132.325 SECONDS - IMPACT VELOCITY 1945.89 MPH
+SORRY THERE NERE NO SURVIVORS. YOU BLOW IT!
+IN FACT, YOU BLASTED A NEW LUNAR CRATER 441.717 FEET DEEP!
+
+
+
+TRY AGAIN??
+
+SET BURN RATE OF RETRO ROCKETS TO ANY VALUE BETWEEN
+0 (FREE FALL) AND 200 (MAXIMUM BURN) POUNDS PER SECOND.
+SET NEW BURN RATE EVERY 10 SECONDS.
+
+CAPSULE WEIGHT 32,500 LBS; FUEL WEIGHT 16,500 LBS.
+
+
+
+GOOD LUCK
+
+SEC           MI + FT       MPH           LB FUEL       BURN RATE
+
+ 0             120  0        3600          16500        ? 10
+ 10            109  5160     3616.33       16400        ? 10
+ 20            99  4801      3632.61       16300        ? 10
+ 30            89  4203      3648.82       16200        ? 10
+ 40            79  3369      3664.97       16100        ? 10
+ 50            69  2298      3681.07       16000        ? 10
+ 60            59  991       3697.1        15900        ? 

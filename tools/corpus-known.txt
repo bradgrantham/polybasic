@@ -1,0 +1,8 @@
+# Text-tier programs in apple2-disks-unpacked that do not parse, and why.
+# Paths are relative to the unpacked root.  Applesoft itself would report the
+# same errors when it reached these lines.
+
+Brad's Handwriting/Data Capture Data/CALL1800S.bas                      # last line is cut off: "1000 FOR DG ="
+Brad's Handwriting/Machine Language Assembler - Startup/CHARPRIN.OKI.bas   # "INPUT A$;" is not legal
+Commercial/Applesoft Sampler/deleted/HNJFTRGMEBVYRHSUTKYJRGT.bas        # a deleted file whose sectors were reused: not a program
+Dad's Handwriting/Thunderbirds, Apple Bowl, Death Maze, Space Raider/ADWIN.bas   # "PRINT A$(I),B$(I" lacks its closing parenthesis
