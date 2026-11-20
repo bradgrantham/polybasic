@@ -22,6 +22,7 @@ struct Gfx {
     uint8_t line_color;           // colour byte of the last dot positioned
     int hx, hy;                   // hi-res cursor
     uint8_t rot, scale;
+    uint8_t collisions;           // dots of the last shape that met something
     bool ready;
 };
 Gfx g;
@@ -147,14 +148,21 @@ void draw_shape(Interp &in, int n, bool exclusive)
     int steps = g.scale ? g.scale : 256;
     uint8_t colour = g.hcolor;
 
+    // A dot collides if XDRAW turns it off, or if DRAW finds it already the
+    // colour being drawn.  (From memory of the ROM, like the rest.)
+    g.collisions = 0;
     for(uint8_t byte; (byte = a2_mem[p]) != 0; p++) {
         do {
             int direction = (byte & 3) + quadrant;
             for(int k = 0; k < steps; k++) {
                 if(byte & 4) {
+                    uint8_t *b = hires_byte(g.hx, g.hy);
+                    uint8_t bit = static_cast<uint8_t>(1 << (g.hx % 7));
                     if(exclusive) {
-                        *hires_byte(g.hx, g.hy) ^= static_cast<uint8_t>(1 << (g.hx % 7));
+                        *b ^= bit;
+                        if(!(*b & bit)) { g.collisions++; }
                     } else {
+                        if(((*b ^ colour_at(colour, g.hx)) & bit) == 0) { g.collisions++; }
                         hires_plot(g.hx, g.hy, colour);
                     }
                 }
@@ -175,6 +183,54 @@ void draw_shape(Interp &in, int n, bool exclusive)
 }
 
 }  // namespace
+
+bool a2_graphics_peek(uint16_t addr, uint8_t *value)
+{
+    setup();
+    switch(addr) {
+        case 0x30: *value = static_cast<uint8_t>(g.color * 17); break;
+        case 0xE0: *value = static_cast<uint8_t>(g.hx); break;
+        case 0xE1: *value = static_cast<uint8_t>(g.hx >> 8); break;
+        case 0xE2: *value = static_cast<uint8_t>(g.hy); break;
+        case 0xE4: *value = g.hcolor; break;
+        case 0xE7: *value = g.scale; break;
+        case 0xEA: *value = g.collisions; break;
+        case 0xF9: *value = g.rot; break;
+        default: return false;
+    }
+    return true;
+}
+
+bool a2_graphics_poke(uint16_t addr, uint8_t value)
+{
+    setup();
+    switch(addr) {
+        case 0x30: g.color = value & 15; break;
+        case 0xE0: g.hx = (g.hx & 0x100) | value; break;
+        case 0xE1: g.hx = (g.hx & 0xFF) | ((value & 1) << 8); break;
+        case 0xE2: g.hy = value; break;
+        case 0xE4: g.hcolor = value; break;
+        case 0xE7: g.scale = value; break;
+        case 0xEA: g.collisions = value; break;
+        case 0xF9: g.rot = value; break;
+        default: return false;
+    }
+    // A cursor poked off the screen would send the next shape into other memory.
+    if(g.hx > 279) { g.hx = 279; }
+    if(g.hy > 191) { g.hy = 191; }
+    return true;
+}
+
+void a2_hires_fill(bool with_colour)
+{
+    setup();
+    for(int y = 0; y < 192; y++) {
+        uint8_t *row = hires_byte(0, y);
+        for(int col = 0; col < A2_COLS; col++) {
+            row[col] = with_colour ? colour_at(g.line_color, col * 7) : 0;
+        }
+    }
+}
 
 int32_t a2_int_arg(Interp &in, const Value &v)
 {

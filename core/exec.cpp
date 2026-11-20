@@ -309,7 +309,7 @@ static uint32_t op_length(const uint8_t *p)
         case OP_INT: case OP_RESTORE: case OP_GOTO: case OP_GOSUB: case OP_JF: case OP_JMP:
         case OP_ONERR:
             return 5;
-        case OP_NUM: case OP_DEF:
+        case OP_NUM: case OP_DEF: case OP_LIST:
             return 9;
         case OP_STR:
             return 3u + rd16(p + 1);
@@ -896,6 +896,10 @@ Halt execute(Interp &in, uint32_t start)
                 in.pc += 2;
                 break;
             }
+            case OP_LIST:
+                list_program(in, static_cast<int32_t>(rd32(p + 1)), static_cast<int32_t>(rd32(p + 5)));
+                in.pc += 9;
+                break;
             case OP_RESTORE: {
                 uint32_t line = rd32(p + 1);
                 in.data_index = 0;

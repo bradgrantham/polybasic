@@ -36,6 +36,11 @@ struct Apple2Options {
 };
 void apple2_configure(const Apple2Options &opt);
 
+// True while a DOS EXEC file still has lines to give: they are what is
+// "typed" next, at INPUT or at the prompt.  apple2_exec_cancel drops them.
+bool apple2_exec_pending();
+void apple2_exec_cancel();
+
 }  // namespace basic
 
 #endif

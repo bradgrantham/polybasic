@@ -596,25 +596,32 @@ Err run_direct(Interp &in, const char *line)
     return run_from(in, in.prog_end);
 }
 
-void repl(Interp &in)
+int direct_step(Interp &in)
 {
     char line[512];
-    for(;;) {
-        if(in.sem.prompt) { out_text(in, in.sem.prompt); }
-        int len = in_line(in, line, sizeof(line));
-        if(len < 0) { break; }
-        const char *rest;
-        if(word_is(line, "QUIT", &rest) || word_is(line, "BYE", &rest)
-            || word_is(line, "SYSTEM", &rest)) {
-            break;
-        }
-        if(enter_line(in, line)) { continue; }
-        const char *p = line;
-        while(*p == ' ') { p++; }
-        if(!*p) { continue; }
-        run_direct(in, line);
-        if(in.sem.ready) { out_text(in, in.sem.ready); }
+    if(in.sem.prompt) { out_text(in, in.sem.prompt); }
+    int len = in_line(in, line, sizeof(line));
+    if(len < 0) { return -1; }
+    const char *rest;
+    if(word_is(line, "QUIT", &rest) || word_is(line, "BYE", &rest)
+        || word_is(line, "SYSTEM", &rest)) {
+        return -1;
     }
+    if(in.dialect->machine && in.dialect->machine->direct) {
+        in.dialect->machine->direct(in, line, sizeof(line));
+    }
+    if(enter_line(in, line)) { return E_NONE; }
+    const char *p = line;
+    while(*p == ' ') { p++; }
+    if(!*p) { return E_NONE; }
+    Err e = run_direct(in, line);
+    if(in.sem.ready) { out_text(in, in.sem.ready); }
+    return e;
+}
+
+void repl(Interp &in)
+{
+    while(direct_step(in) >= 0) { }
 }
 
 }  // namespace basic

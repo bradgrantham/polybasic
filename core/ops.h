@@ -40,6 +40,7 @@ enum Op : uint8_t {
     OP_INPUT_GET,     // u8 field index, u8 type
     OP_READ,          // u8 type
     OP_RESTORE,       // u32 line number, or NO_TARGET
+    OP_LIST,          // u32 first line, u32 last line: list them and carry on
     OP_GOTO,          // u32 code offset
     OP_GOSUB,         // u32 code offset
     OP_RETURN,

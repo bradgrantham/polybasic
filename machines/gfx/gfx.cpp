@@ -545,7 +545,7 @@ void gfx_poll(Interp &)
 
 extern const Machine gfx_machine = {
     gfx_write, gfx_input_redirected, gfx_read_line, gfx_read_key, gfx_ext, gfx_reset_io,
-    gfx_finish, gfx_poll,
+    gfx_finish, gfx_poll, nullptr,
 };
 
 }  // namespace basic

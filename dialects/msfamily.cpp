@@ -905,6 +905,19 @@ struct Parser {
                 break;
             case KW_DATA: data_statement(); break;
             case KW_READ: read_statement(); break;
+            case KW_LIST: {
+                next();
+                uint32_t from = 0, to = 0x7FFFFFFF;
+                if(type == T_NUMBER) { from = to = static_cast<uint32_t>(line_number()); }
+                if(is_char(',') || is_char('-')) {
+                    next();
+                    to = type == T_NUMBER ? static_cast<uint32_t>(line_number()) : 0x7FFFFFFF;
+                }
+                c.e8(OP_LIST);
+                c.e32(from);
+                c.e32(to);
+                break;
+            }
             case KW_RESTORE:
                 next();
                 c.e8(OP_RESTORE);

@@ -345,6 +345,13 @@ int main(int argc, char **argv)
             status = check_program(in) == 0 ? 0 : 1;
         } else {
             status = run_program(in) == E_NONE ? 0 : 1;
+            // A program that gave DOS an EXEC file has left lines to obey
+            // at the prompt; Ctrl-C puts an end to them.
+            while(apple2_exec_pending()) {
+                int e = direct_step(in);
+                if(e < 0) { break; }
+                if(e == E_BREAK) { apple2_exec_cancel(); }
+            }
         }
     } else {
         repl(in);

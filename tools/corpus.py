@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Check the interpreter against a tree of recovered Apple II BASIC programs.
 
-usage: tools/corpus.py UNPACKED_ROOT [--basic build/basic] [--tier NAME] [-v]
+usage: tools/corpus.py UNPACKED_ROOT [--basic build/basic] [--tier NAME] [--run] [-v]
 
 Finds every .bas file under UNPACKED_ROOT (as written by the unpacker in
 apple2-disks-unpacked/_tools), keeps one copy of each distinct Applesoft
@@ -16,6 +16,11 @@ contain statements that do not parse.
   machine   CALL, USR or &
 
 --tier limits the run to one tier; -v lists every statement that fails.
+
+--run runs each program instead, with no input, no window, and a stop after
+100,000 loop iterations, and counts how each one stopped.  For a program
+stopped by ?NOT AVAILABLE ERROR it counts what was missing, which is what to
+do next.  -v lists every program with how it stopped.
 
 tools/corpus-known.txt names the programs whose errors are their own (damaged
 or mistyped on the original disk).  The exit status is 1 if a text-tier
@@ -75,13 +80,60 @@ def programs(root):
     return list(seen.values())
 
 
+def run_all(args):
+    """Run every program headless and say how each stopped."""
+    stops = {}                                     # (tier, how) -> count
+    missing = {}                                   # what was not available -> count
+    for path, text in programs(args.root):
+        tier = tier_of(text)
+        if args.tier and tier != args.tier:
+            continue
+        # perl supplies the timeout, as in tests/run.sh.
+        command = ["perl", "-e", "alarm 30; exec @ARGV", args.basic, "--stream", "--no-window",
+                   "--break-after", "100000", path]
+        run = subprocess.run(command, stdin=subprocess.DEVNULL, capture_output=True)
+        out = (run.stdout + run.stderr).decode("latin-1")
+        errors = re.findall(r"\?([A-Z' ]+) ERROR", out)
+        if run.returncode < 0 or run.returncode > 128:
+            how = "killed (hung or crashed)"
+        elif errors:
+            how = errors[-1]
+        elif "BREAK" in out:
+            how = "running, or waiting for a key"
+        else:
+            how = "ended"
+        what = ""
+        if how == "NOT AVAILABLE":
+            notes = re.findall(r"\[((?:PEEK|POKE|CALL|MOVE TO|DOS COMMAND) [^\]]*)\]", out)
+            what = notes[-1] if notes else "a statement"
+            if what.startswith("CALL"):
+                address = int(what.split()[1])
+                what = "CALL into RAM" if address < 0xC000 else what
+            missing[what] = missing.get(what, 0) + 1
+        stops[(tier, how)] = stops.get((tier, how), 0) + 1
+        if args.verbose:
+            print("%-9s %-30s %-22s %s" % (tier, how, what, os.path.relpath(path, args.root)))
+    if args.verbose:
+        print()
+    for (tier, how), count in sorted(stops.items()):
+        print("%-9s %-30s %4d" % (tier, how, count))
+    if missing:
+        print("\nnot available:")
+        for what, count in sorted(missing.items(), key=lambda item: (-item[1], item[0])):
+            print("%4d  %s" % (count, what))
+    return 0
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("root")
     ap.add_argument("--basic", default="build/basic")
     ap.add_argument("--tier", choices=TIERS)
+    ap.add_argument("--run", action="store_true")
     ap.add_argument("-v", "--verbose", action="store_true")
     args = ap.parse_args()
+    if args.run:
+        return run_all(args)
 
     counts = {t: [0, 0, 0, 0] for t in TIERS}      # total, clean, unavailable, errors
     failures = []

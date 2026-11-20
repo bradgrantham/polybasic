@@ -193,6 +193,9 @@ struct Machine {
     // Called on every backward jump and loop iteration (may be null): a turn
     // for the machine to refresh a display and look at its window.
     void (*poll)(Interp &);
+    // A line typed at the prompt, before it is obeyed (may be null): the
+    // machine may rewrite it in place, within cap bytes.
+    void (*direct)(Interp &, char *line, int cap);
 };
 
 struct Dialect {
@@ -294,6 +297,9 @@ Err run_program(Interp &in);                       // RUN; returns the error, if
 Err run_direct(Interp &in, const char *line);      // one direct-mode line
 Err continue_program(Interp &in);                  // CONT
 void repl(Interp &in);                             // read and obey lines until EOF
+// Read and obey one line as repl does.  Returns -1 at end of input or QUIT,
+// otherwise the Err the line ended with.
+int direct_step(Interp &in);
 Halt execute(Interp &in, uint32_t pc);             // executor proper; raises on error
 // Compile and list the statements that did not compile, one per line of
 // output.  Returns how many are real errors (not merely unsupported).

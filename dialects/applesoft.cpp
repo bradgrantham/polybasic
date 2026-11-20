@@ -29,7 +29,7 @@ static const Keyword keywords[] = {
     {"GOSUB", KW_GOSUB}, {"RETURN", KW_RETURN}, {"REM", KW_REM}, {"STOP", KW_STOP},
     {"ON", KW_ON}, {"WAIT", KW_EXT, A2_WAIT, "N,N?,N"}, {"LOAD", KW_UNSUPPORTED},
     {"SAVE", KW_UNSUPPORTED}, {"DEF", KW_DEF}, {"POKE", KW_EXT, A2_POKE, "N,N"},
-    {"PRINT", KW_PRINT}, {"CONT", KW_UNSUPPORTED}, {"LIST", KW_UNSUPPORTED},
+    {"PRINT", KW_PRINT}, {"CONT", KW_UNSUPPORTED}, {"LIST", KW_LIST},
     {"CLEAR", KW_CLEAR}, {"GET", KW_GET}, {"NEW", KW_UNSUPPORTED},
     {"TAB(", KW_TAB}, {"TO", KW_TO}, {"FN", KW_FN}, {"SPC(", KW_SPC},
     {"THEN", KW_THEN}, {"AT", KW_AT}, {"NOT", KW_NOT}, {"STEP", KW_STEP},

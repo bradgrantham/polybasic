@@ -18,6 +18,7 @@ enum Kw : uint8_t {
     KW_EXT,                       // machine statement: Keyword::id and ::sig
     KW_HPLOT,                     // machine statement with its own syntax
     KW_UNSUPPORTED,               // recognised, but fails if executed
+    KW_LIST,                      // LIST [first][, or -[last]] inside a program
     // Words inside statements.
     KW_TAB, KW_SPC, KW_TO, KW_SUB, KW_FN, KW_THEN, KW_ELSE, KW_STEP,
     KW_NOT, KW_AND, KW_OR, KW_AT,

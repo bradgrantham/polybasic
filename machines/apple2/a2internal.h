@@ -49,6 +49,15 @@ inline uint16_t a2_hires_row(int y)
 // for an id that is not one of them.
 bool a2_graphics_ext(Interp &in, uint16_t id, Value *args, int nargs, Value *result);
 int32_t a2_int_arg(Interp &in, const Value &v);
+// The page-zero locations the graphics statements keep: the lo-res colour
+// ($30), the hi-res cursor ($E0-$E2), HCOLOR's byte ($E4), SCALE ($E7), the
+// collision count of the last DRAW or XDRAW ($EA) and ROT ($F9).  Each
+// returns false for any other address.
+bool a2_graphics_peek(uint16_t addr, uint8_t *value);
+bool a2_graphics_poke(uint16_t addr, uint8_t value);
+// Fill the hi-res page being drawn on with black, or with the colour last
+// plotted (the ROM's HCLR and BKGND).
+void a2_hires_fill(bool with_colour);
 
 // video.cpp: draw the screen the switches select into A2_FB_W * A2_FB_H
 // pixels (0x00RRGGBB).  Flashing characters are inverse while flash_on; a

@@ -10,11 +10,12 @@ What exists and what comes next. The phases are defined in [PLAN.md](PLAN.md).
 | 3 | Applesoft, text only, with the DOS command layer | Done |
 | 4a | Apple II graphics: window and PNG | Done |
 | 4b | Griffin dialect; `gfx` pack with sound, on a host and Griffin Jr. | Done |
-| 5 | Applesoft memory access | Partly done |
+| 5 | Applesoft memory access | Done as far as it goes without a 6502 (phase 7) |
 | 6 | Integer BASIC front end | Not started |
 | 7 | Griffin video pack; 6502 core | Not started; each needs a design |
 
-`make test` runs 51 tests and all pass: on a Mac built with clang, against SDL3 and with
+`make test` runs 54 tests and all pass on a Mac built with clang against SDL3. The 51 before
+phase 5 was finished also passed with
 `SDL3=no`; on Linux (x86-64) built with GCC 13.3 with `SDL3=no`, where they also pass under
 `-fsanitize=address,undefined`, and against SDL 3.4.20 (built from source into `~/.local`; the
 window opened on a GNOME desktop through XWayland). `make test-griffinjr` runs the 24
@@ -272,9 +273,9 @@ Not done, or not tried:
 - PAL machines play at 15,625 Hz, not 15,707; the rate is taken from the BIOS but was not tried.
 - The griffin dialect is not in a Griffin build (phase 2b), and Griffin video is its own pack.
 
-## Phase 5: Applesoft memory access (partly done)
+## Phase 5: Applesoft memory access (done, short of machine code)
 
-Done early because a recovered program, the Latin Idiom Translator, needed them; one more test,
+The first part was done early because a recovered program, the Latin Idiom Translator, needed them; one more test,
 `tests/applesoft/wide.bas`, covers them:
 
 - **80 columns:** `PR#3` (as a statement or a DOS command) switches the text screen to 80x24 and
@@ -293,5 +294,67 @@ Done early because a recovered program, the Latin Idiom Translator, needed them;
 Ctrl-C still always stops the program, even one with an `ONERR` handler that expects to catch it
 (code 255) as this one does. The error codes and `CALL` addresses are from memory of the manuals.
 
-Not done: every other `PEEK`, `POKE` and `CALL` address, `PDL`, `USR`, and the phase's check
-(loading the soft-switch-only and ROM-call-only recovered programs and running a subset).
+The rest was chosen by counting which addresses the recovered programs use
+(`tests/applesoft/memory.bas` and `tests/graphics/rom.bas` cover it):
+
+- **Memory is plain RAM** in page zero, the input buffer (`$200`), all of page 3 and `$400` to
+  `$BFFF`, apart from the locations given a meaning. Page 1 (the stack), the slot ROMs and the
+  ROM stay unavailable.
+- **Page zero with a meaning:** the text row address (40, 41), `INVERSE`/`NORMAL` as a flag
+  (50), a changing random seed (78, 79), the start and end of the program and `HIMEM:` (103 to
+  116, 175, 176; the end is the size of the program's text, not of a tokenised program), the
+  lo-res colour (48), and for hi-res the cursor (224 to 226), `HCOLOR=`'s byte (228), `SCALE=`
+  (231), `ROT=` (249) and the collision count of the last `DRAW` or `XDRAW` (234).
+- **DOS and the Monitor as data:** the DOS 3.3 vectors at `$3D0`; the length and address of the
+  last `BLOAD` (43616, 43617, 43634, 43635); slot and drive; the Monitor's identity bytes
+  (-1101, -1088: an enhanced //e); ProDOS's machine byte.
+- **Switches:** the buttons (-16287 is the joystick's fire button; the others are never
+  pressed). Accepted with no effect: the speaker (-16336), cassette output, the annunciators,
+  the paddle trigger, the language card and the disk drive's switches in slot 6.
+- **`PDL`** gives the platform's paddle, or 127 (the middle) where there is none. An Apple with
+  nothing plugged in reads 255; the middle is kinder to a program that steers by it.
+- **`CALL`:** line input into `$200` (-657, -662, -665), wait for a key (-756, -741), the
+  Monitor's memory move (-468, with 60 to 63, 66 and 67), hi-res clear to black and to the last
+  colour plotted (-3086, -3082), `HGR`, `HGR2`, `TEXT` and `GR` by address, lo-res clear (-1998,
+  -1994), cursor moves, inverse and normal, the bell, and several that have nothing to do here
+  (reconnect DOS, clear the stack, find the hi-res cursor).
+- **`INPUT` leaves its line at `$200`**, as on an Apple, for programs that read it back to get
+  commas.
+- **A `?NOT AVAILABLE ERROR` says what was missing** on the line before it, for example
+  `[CALL 768 ($0300)]` or `[DOS COMMAND BRUN]`.
+- **`LIST` inside a program** lists and carries on, with a range in either of Applesoft's forms
+  (`LIST 100,200`, `LIST 100-200`). It prints the program's text as loaded: a program that
+  pokes its own tokens and then lists itself to show the result will see no change.
+- **`EXEC`:** the file's lines are typed from then on, into `INPUT` while a program runs and at
+  the prompt once it ends, so a disk whose `HELLO` hands over to an `EXEC` file starts up. At
+  the prompt DOS commands are obeyed without a Ctrl-D, as on an Apple, for typed lines too
+  (`CATALOG`, `RUN NAME`). Ctrl-C drops the rest of the file. `GET` does not read from it.
+  `tests/applesoft/exec.bas` covers both.
+- **`tools/corpus.py --run`** runs every recovered program with no input and counts how each
+  stopped and what was missing.
+
+The phase's check, run over all 481 distinct Applesoft programs (`tools/corpus.py --run`): in
+the memory and machine tiers, 175 of 354 stopped at something not available before this work
+and 108 do now; 158 run to their end and 63 are still running or waiting for a key when
+stopped. The same run was not compared program by program with a real Apple, and "ended"
+means only that: nothing was looked at.
+
+That count was taken before `LIST` and `EXEC` were added. With them, 111 programs in all four
+tiers stop at something not available (121 before), and this is what they want:
+
+| Missing | Programs |
+|---|---|
+| `CALL` to machine code in RAM (poked in, or `BLOAD`ed) | 75 |
+| `BRUN` | 17 |
+| A statement (below) | 9 |
+| ROM contents, the stack page, slot ROMs, the Monitor's command line | 10 |
+
+So what is left needs a 6502 (phase 7). The statements are `&` (machine code again), `NEW`
+and `DEL` inside a program, and four Beagle Basic programs whose `RECALL` and `SAVE` are that
+product's renamed keywords, not Applesoft's cassette statements.
+
+Written from memory and not checked against listings: every address above, the DOS vector
+bytes, and the rule for what counts as a shape collision.
+
+Not done: `USR`, `SHLOAD`, `STORE`, `RECALL`, `DEL`, `BSAVE`; the speaker makes no sound; paddle timing through
+the raw switches (-16284 and on) is unavailable, only `PDL` works.

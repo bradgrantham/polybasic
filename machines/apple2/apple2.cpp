@@ -78,6 +78,9 @@ struct State {
     uint8_t kbd;
     bool kbd_eof;                 // scripted input has run out
 
+    // What was asked for when ?NOT AVAILABLE ERROR was last raised here.
+    char missing[48];
+
     // Window and PNG.
     uint8_t window_mode;
     bool window;                  // the window is open
@@ -91,6 +94,8 @@ struct State {
     bool snapped;                 // a PNG has been written
 
     // DOS.
+    char *exec_text;              // an EXEC file being read as the keyboard, or null
+    uint32_t exec_len, exec_pos;
     bool collecting;
     bool mid_line;                // the last character printed was not a return
     char cmd[256];
@@ -115,6 +120,8 @@ uint8_t &cell(int row, int col)
 
 void open_window();
 
+void memory_setup();
+
 void setup()
 {
     if(a2.ready) { return; }
@@ -123,6 +130,7 @@ void setup()
     a2.width = 40;
     a2.bottom = ROWS;
     a2.reading = a2.writing = -1;
+    memory_setup();
     a2.terminal = plat_is_terminal();
     a2.may_screen = a2.terminal && !a2.stream_only;
     if(!a2.disk[0]) { strcpy(a2.disk, "."); }
@@ -501,13 +509,94 @@ void wait(Interp &in, uint16_t addr, int32_t mask, int32_t flip)
     }
 }
 
-// CALL: the Monitor routines programs use for the screen, done natively.
+// Stop with ?NOT AVAILABLE ERROR, remembering what was wanted so that it
+// can be said (a2_reset_io does).
+[[noreturn]] void unavailable(Interp &in, const char *what, uint16_t addr)
+{
+    snprintf(a2.missing, sizeof(a2.missing), "%s %u ($%04X)", what, static_cast<unsigned>(addr),
+             static_cast<unsigned>(addr));
+    raise(in, E_NOT_AVAILABLE);
+}
+
+bool plain_ram(uint16_t addr);
+int a2_read_line(Interp &in, char *buf, int cap);
+int a2_read_key(Interp &in);
+
+uint16_t word_at(uint16_t addr)
+{
+    return static_cast<uint16_t>(a2_mem[addr] | (a2_mem[static_cast<uint16_t>(addr + 1)] << 8));
+}
+
+// CALL: the Monitor, Applesoft and DOS routines programs use, done natively.
+// (Addresses from memory of the Monitor and Applesoft listings.)
 void call(Interp &in, uint16_t addr)
 {
     switch(addr) {
         case 0xFC58:                              // HOME
             a2_ext(in, A2_HOME, nullptr, 0, nullptr);
             break;
+        case 0xFB2F: case 0xFB39:                 // INIT, SETTXT
+            a2_ext(in, A2_TEXT, nullptr, 0, nullptr);
+            break;
+        case 0xFB40:                              // SETGR
+            a2_ext(in, A2_GR, nullptr, 0, nullptr);
+            break;
+        case 0xF3E2:                              // HGR
+            a2_ext(in, A2_HGR, nullptr, 0, nullptr);
+            break;
+        case 0xF3D8:                              // HGR2
+            a2_ext(in, A2_HGR2, nullptr, 0, nullptr);
+            break;
+        case 0xF832: case 0xF836:                 // CLRSCR, CLRTOP: lo-res to black
+            for(int r = 0; r < (addr == 0xF832 ? ROWS : 20); r++) { memset(&a2_mem[a2_text_row(r)], 0, 40); }
+            break;
+        case 0xF3F2: case 0xF3F6:                 // HCLR; BKGND, the colour last plotted
+            a2_hires_fill(addr == 0xF3F6);
+            break;
+        case 0xF5CB:                              // HFIND: cursor to $E0-$E2, where it is kept anyway
+        case 0x03EA:                              // reconnect DOS
+        case 0xD683:                              // clear the stack
+        case 0xFB6F:                              // SETPWRC
+        case 0xFE89: case 0xFE93:                 // IN#0, PR#0
+            break;
+        case 0xFC66: put(10); break;              // LF
+        case 0xFC10: put(8); break;               // BS
+        case 0xFD8E: case 0xFC62: put(13); break; // CROUT, CR
+        case 0xFC1A:                              // UP
+            if(a2.cv > a2.top) { a2.cv--; a2.moved = true; }
+            break;
+        case 0xFBF4:                              // ADVANCE
+            if(a2.ch + 1 < a2.width) { a2.ch++; } else { put(13); }
+            break;
+        case 0xFE80: a2.mode = M_INVERSE; break;  // SETINV
+        case 0xFE84: a2.mode = M_NORMAL; break;   // SETNORM
+        case 0xFBDD: case 0xFBE4:                 // BELL1, BELL2
+            put(7);
+            break;
+        case 0xFF2D:                              // PRERR
+            put('E'); put('R'); put('R'); put(7);
+            break;
+        case 0xFD0C: case 0xFD1B: case 0xFD35: {  // RDKEY, KEYIN, RDCHAR: wait for a key
+            int key = a2_read_key(in);
+            if(key < 0) { raise(in, E_BREAK); }
+            a2.kbd = static_cast<uint8_t>(key & 0x7F);
+            break;
+        }
+        case 0xFD67: case 0xFD6A: case 0xFD6F: {  // GETLNZ, GETLN, GETLN1: a line into $200
+            char line[256];
+            if(addr == 0xFD67) { put(13); }
+            if(addr != 0xFD6F) { put(a2_mem[0x33] & 0x7F); }
+            if(a2_read_line(in, line, sizeof(line)) < 0) { raise(in, E_BREAK); }
+            break;
+        }
+        case 0xFE2C: {                            // MOVE: A1..A2 to A4
+            uint16_t from = word_at(0x3C), last = word_at(0x3E), to = word_at(0x42);
+            for(uint32_t a = from; a <= last; a++, to++) {
+                if(!plain_ram(to)) { unavailable(in, "MOVE TO", to); }
+                a2_mem[to] = a2_mem[a];
+            }
+            break;
+        }
         case 0xFC42: case 0xFC9C: {               // clear to end of screen, of line
             int last = addr == 0xFC42 ? a2.bottom - 1 : a2.cv;
             for(int r = a2.cv; r <= last; r++) {
@@ -525,19 +614,55 @@ void call(Interp &in, uint16_t addr)
         case 0xF328:                              // tidy the stack after an ONERR; nothing to tidy here
             break;
         default:
-            raise(in, E_NOT_AVAILABLE);
+            unavailable(in, "CALL", addr);
     }
 }
 
 
-// Memory that is only memory: page 3 (where short machine-code routines and
-// shape tables are kept), the text page, and everything above it up to the
-// I/O space: free RAM and the hi-res pages.
+// Memory that is only memory: page zero (apart from the locations peek and
+// poke give a meaning to), the input buffer, page 3 (short machine-code
+// routines, shape tables, and the DOS vectors), the text page, and everything
+// above it up to the I/O space: free RAM, the hi-res pages, and where DOS
+// would be.  Page 1 is the 6502's stack and stays out.
 bool plain_ram(uint16_t addr)
 {
-    return (addr >= 0x300 && addr < 0x3D0) || (addr >= A2_TEXT_PAGE && addr < 0xC000)
-        || addr == A2_ZP_HPAGE || addr == A2_ZP_SHAPES || addr == A2_ZP_SHAPES + 1
-        || addr == 0xD6;                          // the "run on any command" flag
+    return addr < 0x100 || (addr >= 0x200 && addr < 0xC000);
+}
+
+// What a freshly started Apple with DOS 3.3 has in the places programs look.
+void memory_setup()
+{
+    // The DOS vectors at $3D0 (warm start, cold start, file manager, RWTS,
+    // two parameter-list finders, reconnect, BRK, reset, &, Ctrl-Y, NMI, IRQ).
+    static const uint8_t vectors[48] = {
+        0x4C, 0xBF, 0x9D, 0x4C, 0x84, 0x9D, 0x4C, 0xFD, 0xAA, 0x4C, 0xB5, 0xB7, 0xAD, 0x0F, 0x9D, 0xAC,
+        0x0E, 0x9D, 0x60, 0xAD, 0xC2, 0xAA, 0xAC, 0xC1, 0xAA, 0x60, 0x4C, 0x51, 0xA8, 0xEA, 0xEA, 0x4C,
+        0x59, 0xFA, 0xBF, 0x9D, 0x38, 0x4C, 0x58, 0xFF, 0x4C, 0x65, 0xFF, 0x4C, 0x65, 0xFF, 0x65, 0xFF,
+    };
+    memcpy(&a2_mem[0x3D0], vectors, sizeof(vectors));
+    a2_mem[0x33] = 0xDD;                          // the prompt, "]"
+    a2_mem[0x67] = 0x01;                          // the program starts at $0801
+    a2_mem[0x68] = 0x08;
+    a2_mem[0x73] = 0x00;                          // HIMEM: $9600, below DOS
+    a2_mem[0x74] = 0x96;
+    a2_mem[0x6F] = 0x00;                          // strings start there too
+    a2_mem[0x70] = 0x96;
+    a2_mem[0x4C] = 0x00;                          // and Integer BASIC's HIMEM
+    a2_mem[0x4D] = 0x96;
+    a2_mem[0xAA68] = 1;                           // drive 1
+    a2_mem[0xAA6A] = 6;                           // slot 6
+    a2_mem[0xB7E9] = 0x60;                        // and again, as RWTS has them
+    a2_mem[0xB7EA] = 1;
+    a2_mem[0xBF98] = 0xB3;                        // ProDOS MACHID: a //e with 128K and 80 columns
+}
+
+// Switches that do something on an Apple and nothing here: cassette out,
+// the speaker, the utility strobe, the annunciators, the paddle trigger, the
+// language card, and the disk drive in slot 6 (programs spin it for effect).
+bool idle_switch(uint16_t addr)
+{
+    return addr == 0xC020 || addr == 0xC030 || addr == 0xC040 || (addr >= 0xC058 && addr <= 0xC05F)
+        || addr == 0xC070 || (addr >= 0xC080 && addr <= 0xC08F) || (addr >= 0xC0E0 && addr <= 0xC0EF);
 }
 
 uint16_t address(Interp &in, const Value &v)
@@ -575,6 +700,11 @@ uint8_t peek(Interp &in, uint16_t addr)
         a2.kbd &= 0x7F;
         return 0;
     }
+    if(idle_switch(addr)) { return 0; }
+    // Where the program ends and its variables begin: there is no tokenised
+    // program here, so this is the size of its text, which is near enough
+    // for a program working out how much room is left.
+    uint16_t program_end = static_cast<uint16_t>(0x0801 + (in.text.n < 0x8000 ? in.text.n : 0x8000));
     switch(addr) {
         case 0x20: return static_cast<uint8_t>(a2.left);
         case 0x21: return static_cast<uint8_t>(a2.width);
@@ -582,13 +712,26 @@ uint8_t peek(Interp &in, uint16_t addr)
         case 0x23: return static_cast<uint8_t>(a2.bottom);
         case 0x24: return static_cast<uint8_t>(a2.ch);
         case 0x25: return static_cast<uint8_t>(a2.cv);
+        case 0x28: return static_cast<uint8_t>(a2_text_row(a2.cv));
+        case 0x29: return static_cast<uint8_t>(a2_text_row(a2.cv) >> 8);
+        case 0x32: return a2.mode == M_INVERSE ? 0x3F : (a2.mode == M_FLASH ? 0x7F : 0xFF);
+        case 0x4E: return static_cast<uint8_t>(plat_ticks_ms());        // the random seed the
+        case 0x4F: return static_cast<uint8_t>(plat_ticks_ms() >> 8);   // keyboard wait counts up
+        case 0x69: case 0x6B: case 0x6D: case 0xAF: return static_cast<uint8_t>(program_end);
+        case 0x6A: case 0x6C: case 0x6E: case 0xB0: return static_cast<uint8_t>(program_end >> 8);
         case 0xDA: return static_cast<uint8_t>(in.err_line);
         case 0xDB: return static_cast<uint8_t>(in.err_line >> 8);
         case 0xDE: return error_code(in.err);
+        case 0xC061: return (plat_joystick() & PLAT_JOY_FIRE) ? 0x80 : 0;   // button 0
+        case 0xC062: case 0xC063: return 0;                                 // buttons 1 and 2
+        case 0xFBB3: return 0x06;                 // the Monitor's identity bytes: an
+        case 0xFBC0: return 0xE0;                 // enhanced //e
         default: break;
     }
     if(addr == A2_ZP_ONERR) { return in.onerr != NO_TARGET ? 0x80 : 0; }
-    if(!plain_ram(addr)) { raise(in, E_NOT_AVAILABLE); }
+    uint8_t value;
+    if(a2_graphics_peek(addr, &value)) { return value; }
+    if(!plain_ram(addr)) { unavailable(in, "PEEK", addr); }
     return a2_mem[addr];
 }
 
@@ -620,7 +763,12 @@ void poke(Interp &in, uint16_t addr, uint8_t value)
         if(value < 0x80) { in.onerr = NO_TARGET; }    // POKE 216,0 turns ONERR GOTO off
         return;
     }
-    if(!plain_ram(addr)) { raise(in, E_NOT_AVAILABLE); }
+    if(addr == 0x32) {                            // INVFLG
+        a2.mode = value == 0x3F ? M_INVERSE : (value == 0x7F ? M_FLASH : M_NORMAL);
+        return;
+    }
+    if(idle_switch(addr) || a2_graphics_poke(addr, value)) { return; }
+    if(!plain_ram(addr)) { unavailable(in, "POKE", addr); }
     a2_mem[addr] = value;
 }
 
@@ -940,6 +1088,11 @@ void bload(Interp &in, const char *name, int32_t at)
     if(e == E_NONE) {
         memcpy(&a2_mem[addr], d + skip, count);
         a2.dirty = true;
+        // Where DOS leaves the length and address of the last file loaded.
+        a2_mem[0xAA60] = static_cast<uint8_t>(count);
+        a2_mem[0xAA61] = static_cast<uint8_t>(count >> 8);
+        a2_mem[0xAA72] = static_cast<uint8_t>(addr);
+        a2_mem[0xAA73] = static_cast<uint8_t>(addr >> 8);
     }
     free(file);
     if(e != E_NONE) { raise(in, e); }
@@ -1104,8 +1257,25 @@ void dos_command(Interp &in, const char *text)
             if(!resolve(name, W_PROGRAM, path, sizeof(path))) { raise(in, E_DOS_FILE_NOT_FOUND); }
             in.column = a2.ch;
             chain(in, path);
-        default:
-            raise(in, E_NOT_AVAILABLE);            // BRUN, BSAVE, EXEC, INIT, LOAD, SAVE
+        case V_EXEC: {
+            // The file's lines are typed from here on: into INPUT while a
+            // program runs, and at the prompt when none does.
+            if(!resolve(name, W_TEXT, path, sizeof(path))) {
+                raise(in, resolve(name, W_ANY, path, sizeof(path)) ? E_DOS_FILE_TYPE_MISMATCH : E_DOS_FILE_NOT_FOUND);
+            }
+            uint32_t len;
+            char *text = plat_read_file(path, &len);
+            if(!text) { raise(in, E_DOS_IO); }
+            apple2_exec_cancel();
+            a2.exec_text = text;
+            a2.exec_len = len;
+            break;
+        }
+        default:                                  // BRUN, BSAVE, INIT, LOAD, SAVE
+            for(const auto &v : verbs) {
+                if(v.verb == verb) { snprintf(a2.missing, sizeof(a2.missing), "DOS COMMAND %s", v.text); }
+            }
+            raise(in, E_NOT_AVAILABLE);
     }
 }
 
@@ -1150,10 +1320,47 @@ bool a2_input_redirected(Interp &)
     return a2.reading >= 0;
 }
 
+int read_line(Interp &in, char *buf, int cap);
+
+// A line of input, which is also left in the input buffer at $200 as the
+// Monitor leaves it: high bits set, a Return after it.
 int a2_read_line(Interp &in, char *buf, int cap)
+{
+    int len = read_line(in, buf, cap);
+    int k = 0;
+    for(; k < len && k < 255; k++) { a2_mem[0x200 + k] = static_cast<uint8_t>(buf[k]) | 0x80; }
+    a2_mem[0x200 + k] = 0x8D;
+    return len;
+}
+
+// The next line of the EXEC file, shown as if typed; -1 when there is none.
+int exec_line(Interp &in, char *buf, int cap)
+{
+    if(!a2.exec_text) { return -1; }
+    int len = 0;
+    while(a2.exec_pos < a2.exec_len) {
+        // A file as the Apple stored it has the high bit set on every
+        // character, Return for the end of a line, and zeros after the end.
+        char c = static_cast<char>(a2.exec_text[a2.exec_pos++] & 0x7F);
+        if(c == 0) { a2.exec_pos = a2.exec_len; }
+        if(c == '\n' || c == '\r' || c == 0) { break; }
+        if(len < cap - 1) { buf[len++] = c; }
+    }
+    buf[len] = 0;
+    while(a2.exec_pos < a2.exec_len && (a2.exec_text[a2.exec_pos] & 0x7F) == 0) { a2.exec_pos++; }
+    if(a2.exec_pos >= a2.exec_len) { apple2_exec_cancel(); }
+    for(int k = 0; k < len; k++) { put(static_cast<uint8_t>(buf[k])); }
+    newline();
+    a2.mid_line = false;
+    in.column = a2.ch;
+    return len;
+}
+
+int read_line(Interp &in, char *buf, int cap)
 {
     setup();
     if(a2.reading >= 0) { return file_line(in, buf, cap); }
+    if(a2.exec_text) { return exec_line(in, buf, cap); }
     // A key the program has already seen at $C000 and not cleared is still
     // the first thing typed.
     int held = -1;
@@ -1297,8 +1504,24 @@ void a2_ext(Interp &in, uint16_t id, Value *args, int nargs, Value *result)
         case A2_CALL:
             call(in, address(in, args[0]));
             break;
+        case A2_HIMEM: case A2_LOMEM: {
+            uint16_t at = address(in, args[0]);
+            uint16_t where = id == A2_HIMEM ? 0x73 : 0x4A;
+            a2_mem[where] = static_cast<uint8_t>(at);
+            a2_mem[where + 1] = static_cast<uint8_t>(at >> 8);
+            break;
+        }
+        case A2_PDL: {
+            // With no paddle there an Apple reads 255; the middle is kinder
+            // to a program that steers by it.
+            int32_t n = a2_int_arg(in, args[0]);
+            if(n < 0 || n > 255) { raise(in, E_ILLEGAL_QUANTITY); }
+            int value = n < 2 ? plat_paddle(n) : -1;
+            result->tag = T_INT;
+            result->i = value < 0 ? 127 : value;
+            break;
+        }
         case A2_SPEED: case A2_IN: case A2_TRACE: case A2_NOTRACE:
-        case A2_HIMEM: case A2_LOMEM:
             break;
         default:
             if(!a2_graphics_ext(in, id, args, nargs, result)) { raise(in, E_NOT_AVAILABLE); }
@@ -1317,11 +1540,18 @@ void a2_poll(Interp &in)
 
 // The program stopped or an error was trapped: output and input go back to
 // the screen and keyboard, as DOS does.
-void a2_reset_io(Interp &)
+void a2_reset_io(Interp &in)
 {
     a2.collecting = false;
     a2.mid_line = false;
     a2.reading = a2.writing = -1;
+    // Say what a ?NOT AVAILABLE ERROR was about, ahead of the message.
+    if(a2.missing[0]) {
+        char note[80];
+        int n = snprintf(note, sizeof(note), "%s[%s]", in.column ? "\n" : "", a2.missing);
+        a2_write(in, note, static_cast<uint32_t>(n));
+    }
+    a2.missing[0] = 0;
 }
 
 void a2_finish(Interp &in)
@@ -1356,12 +1586,48 @@ void a2_finish(Interp &in)
     }
 }
 
+// A line typed at the prompt.  DOS takes the ones that are its commands, as
+// it does on an Apple: they are turned into the PRINT of a Ctrl-D and the
+// command, which is how a program gives them.  RUN, LOAD and SAVE are DOS's
+// only with a file name, and READ is never typed.
+void a2_direct(Interp &, char *line, int cap)
+{
+    const char *text = line;
+    while(*text == ' ') { text++; }
+    Verb verb = V_IGNORED;
+    uint32_t best = 0;
+    for(const auto &v : verbs) {
+        uint32_t n = 0;
+        while(v.text[n] && up(text[n]) == v.text[n]) { n++; }
+        if(!v.text[n] && n > best) {
+            best = n;
+            verb = v.verb;
+        }
+    }
+    if(best == 0 || verb == V_READ || strchr(text, '"')) { return; }
+    const char *arg = text + best;
+    while(*arg == ' ') { arg++; }
+    if((verb == V_RUN || verb == V_LOAD || verb == V_SAVE) && (!*arg || (*arg >= '0' && *arg <= '9'))) { return; }
+    char command[600];
+    int n = snprintf(command, sizeof(command), "PRINT CHR$(4);\"%s\"", text);
+    if(n < cap) { memcpy(line, command, static_cast<size_t>(n) + 1); }
+}
+
 }  // namespace
 
 extern const Machine apple2_machine = {
     a2_write, a2_input_redirected, a2_read_line, a2_read_key, a2_ext, a2_reset_io, a2_finish,
-    a2_poll,
+    a2_poll, a2_direct,
 };
+
+bool apple2_exec_pending() { return a2.exec_text != nullptr; }
+
+void apple2_exec_cancel()
+{
+    free(a2.exec_text);
+    a2.exec_text = nullptr;
+    a2.exec_len = a2.exec_pos = 0;
+}
 
 void apple2_configure(const Apple2Options &opt)
 {
