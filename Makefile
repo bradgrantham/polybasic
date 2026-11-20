@@ -44,6 +44,15 @@ CORPUS ?= ../../apple2-disks-unpacked
 corpus: $(BUILD)/basic
 	python3 tools/corpus.py $(CORPUS) --basic $(BUILD)/basic
 
+# The Christmas Carols program: the player in demos/ with the carols as DATA,
+# converted from the unpacked Apple II disk (see tools/carols.py).  The result
+# holds the carols' words, so it stays in build/ and out of the repository.
+CAROLS ?= $(CORPUS)/Commercial/Christmas Carols (Grantham)
+carols:
+	@mkdir -p $(BUILD)
+	python3 tools/carols.py "$(CAROLS)" --data $(BUILD)/carols-data.bas
+	cat demos/carols.bas $(BUILD)/carols-data.bas > $(BUILD)/CAROLS.BAS
+
 # The Griffin Jr. build and its tests in the emulator (see platform/griffinjr/Makefile).
 griffinjr:
 	$(MAKE) -C platform/griffinjr
@@ -53,4 +62,4 @@ test-griffinjr:
 clean:
 	rm -rf $(BUILD)
 
-.PHONY: all test corpus griffinjr test-griffinjr clean
+.PHONY: all test corpus carols griffinjr test-griffinjr clean

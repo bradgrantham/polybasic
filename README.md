@@ -79,6 +79,14 @@ build/basic --wav out.wav prog.bas         # write the sound to out.wav and do n
 build/basic --no-sound prog.bas            # do not use the sound device
 ```
 
+`demos/carols.bas` is the player for a disk of Christmas carols; the carols themselves are
+converted from the unpacked Apple II disk and are not in the repository:
+
+```
+make carols CAROLS=DIR                     # build/CAROLS.BAS from the disk's directory
+build/basic build/CAROLS.BAS
+```
+
 Direct-mode commands: `RUN`, `LIST [from][-to]`, `NEW`, `LOAD "file"`, `SAVE "file"`, `CONT`, `QUIT`.
 Ctrl-C interrupts a running program.
 
@@ -150,6 +158,7 @@ in quarter notes a minute; `V0` to `V15` the volume; `MN`, `ML`, `MS` normal, le
 | `tests/` | `run.sh`; `programs/` and `lang/` (msbasic), `applesoft/`, `graphics/`, `corpus/` (recovered programs), `griffin/` |
 | `tests/run-griffinjr.sh` | runs `programs/`, `lang/` and `griffin/` on Griffin Jr. in its emulator; `tests/bench/` are its loop benchmarks |
 | `tools/fbcompare.py` | compares a Griffin Jr. framebuffer dump with a host PNG |
+| `tools/carols.py` | converts the Christmas Carols disk into `DATA` for `demos/carols.bas` |
 | `tools/corpus.py` | checks the interpreter against the whole recovered collection |
 | `tools/mkfont.py` | regenerates `font.h` from a font image |
 
