@@ -185,7 +185,7 @@ Each phase ends with something runnable and a test that proves it.
    *Check:* the 33 soft-switch-only programs and the 62 ROM-call-only programs load and a subset runs.
    **Partly done.**
 6. **Integer BASIC front end.**
-   *Check:* the 66 recovered Integer programs load; a subset runs.
+   *Check:* the 66 recovered Integer programs load; a subset runs. **Done.**
 7. **Later, each needing its own design:** Griffin video extension pack; a 6502 core for programs
    that `CALL` into RAM.
 

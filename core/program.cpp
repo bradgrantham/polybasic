@@ -420,6 +420,16 @@ static void report(Interp &in, const char *what, bool is_error, uint32_t pc)
     out_text(in, buf);
 }
 
+// The program was stopped by STOP or Ctrl-C.
+static void report_break(Interp &in, uint32_t pc)
+{
+    if(in.dialect->report) {
+        in.dialect->report(in, E_BREAK, line_at(in, pc));
+    } else {
+        report(in, "BREAK", false, pc);
+    }
+}
+
 static void report_error(Interp &in, Err e, uint32_t pc)
 {
     if(is_dos_error(e)) {
@@ -428,7 +438,9 @@ static void report_error(Interp &in, Err e, uint32_t pc)
         out_char(in, '\n');
         out_text(in, error_text(e));
         out_char(in, '\n');
-        if(line_at(in, pc) >= 0) { report(in, "BREAK", false, pc); }
+        if(line_at(in, pc) >= 0) { report_break(in, pc); }
+    } else if(in.dialect->report) {
+        in.dialect->report(in, e, line_at(in, pc));
     } else {
         report(in, error_text(e), true, pc);
     }
@@ -452,7 +464,7 @@ static Err run_from(Interp &in, uint32_t start)
         if(e == 0) {
             Halt h = execute(in, pc);
             if(in.dialect->machine) { in.dialect->machine->reset_io(in); }
-            if(h == H_STOP) { report(in, "BREAK", false, in.opc); }
+            if(h == H_STOP) { report_break(in, in.opc); }
             break;
         }
         if(e != E_CHAIN && in.dialect->machine) { in.dialect->machine->reset_io(in); }
@@ -472,7 +484,7 @@ static Err run_from(Interp &in, uint32_t start)
             continue;
         }
         if(e == E_BREAK) {
-            report(in, "BREAK", false, in.opc);
+            report_break(in, in.opc);
             in.cont_pc = in.opc;
             in.can_cont = in.opc < in.prog_end;
             break;

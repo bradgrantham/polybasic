@@ -38,7 +38,7 @@ keyboard. The dialect there is griffin unless the file's first line is `REM MICR
 ```
 build/basic program.bas          # load, run, exit
 build/basic                      # direct mode: type lines; QUIT to leave
-build/basic --list-dialects      # msbasic, applesoft, griffin
+build/basic --list-dialects      # msbasic, applesoft, griffin, integer
 build/basic --check program.bas  # compile only; list statements that do not compile
 ```
 
@@ -144,10 +144,12 @@ in quarter notes a minute; `V0` to `V15` the volume; `MN`, `ML`, `MS` normal, le
 | `dialects/msbasic.cpp` | Microsoft 8K / Ahl dialect: keyword table and semantics |
 | `dialects/applesoft.cpp` | Applesoft dialect: keyword table and semantics |
 | `dialects/griffin.cpp` | Griffin dialect: keyword table, semantics, and the gfx statements |
+| `dialects/integer.cpp` | Integer BASIC (Apple II): its own lexer and parser, and its error messages |
 | `machines/gfx/gfx.cpp` | the gfx pack: drawing, sprites, input devices, the clock |
 | `machines/gfx/sound.cpp` | its sound: three voices, tones, music strings |
 | `machines/apple2/apple2.cpp` | Apple II text screen, window, memory and DOS 3.3 command layer |
 | `machines/apple2/graphics.cpp` | lo-res and hi-res statements, shape tables |
+| `machines/apple2/routines.cpp` | machine code that recovered disks `CALL`, recognised and done natively (the carols' notes) |
 | `machines/apple2/video.cpp` | screen memory to a picture; `font.h` is its character set |
 | `machines/common/png.cpp` | PNG writer |
 | `platform/posix/main.cpp` | POSIX host platform (terminal, files) and command line |

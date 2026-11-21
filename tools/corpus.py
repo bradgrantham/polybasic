@@ -14,6 +14,7 @@ contain statements that do not parse.
   graphics  lo-res or hi-res statements, nothing lower-level
   memory    PEEK, POKE or WAIT
   machine   CALL, USR or &
+  integer   Integer BASIC programs, whatever they use
 
 --tier limits the run to one tier; -v lists every statement that fails.
 
@@ -34,10 +35,11 @@ import re
 import subprocess
 import sys
 
+INTEGER_HEADER = "REM INTEGER BASIC"
 GRAPHICS = re.compile(r"\b(GR|HGR2?|PLOT|HLIN|VLIN|HPLOT|X?DRAW|SHLOAD)\b|COLOR=|ROT=|SCALE=|SCRN\(")
 MEMORY = re.compile(r"\b(PEEK|POKE|WAIT)\b")
 MACHINE = re.compile(r"\b(CALL|USR)\b|&")
-TIERS = ("text", "graphics", "memory", "machine")
+TIERS = ("text", "graphics", "memory", "machine", "integer")
 
 
 def code_only(text):
@@ -52,6 +54,8 @@ def code_only(text):
 
 
 def tier_of(text):
+    if text.startswith(INTEGER_HEADER):
+        return "integer"
     code = code_only(text)
     if MACHINE.search(code):
         return "machine"
@@ -63,7 +67,7 @@ def tier_of(text):
 
 
 def programs(root):
-    """One path per distinct Applesoft program, in a stable order."""
+    """One path per distinct Applesoft or Integer BASIC program, in a stable order."""
     seen = {}
     for dirpath, dirnames, filenames in os.walk(root):
         dirnames[:] = sorted(d for d in dirnames if d not in ("raw", "_tools"))
@@ -73,7 +77,7 @@ def programs(root):
             path = os.path.join(dirpath, name)
             with open(path, encoding="latin-1") as f:
                 text = f.read()
-            if not text.startswith("REM APPLESOFT BASIC"):
+            if not text.startswith("REM APPLESOFT BASIC") and not text.startswith(INTEGER_HEADER):
                 continue
             digest = hashlib.sha1(text.encode("latin-1")).hexdigest()
             seen.setdefault(digest, (path, text))
@@ -93,7 +97,8 @@ def run_all(args):
                    "--break-after", "100000", path]
         run = subprocess.run(command, stdin=subprocess.DEVNULL, capture_output=True)
         out = (run.stdout + run.stderr).decode("latin-1")
-        errors = re.findall(r"\?([A-Z' ]+) ERROR", out)
+        # "?SYNTAX ERROR" from Applesoft, "*** SYNTAX ERR" from Integer BASIC.
+        errors = [a or b for a, b in re.findall(r"\?([A-Z' ]+) ERROR|\*\*\* (.+?) ERR", out)]
         if run.returncode < 0 or run.returncode > 128:
             how = "killed (hung or crashed)"
         elif errors:

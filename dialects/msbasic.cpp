@@ -47,6 +47,7 @@ extern const Dialect msbasic_dialect = {
     msfamily_compile_line,
     keywords,
     nullptr,
+    nullptr,
 };
 
 }  // namespace basic

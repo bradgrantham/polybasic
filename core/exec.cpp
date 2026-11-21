@@ -370,15 +370,16 @@ static void split_fields(Interp &in, uint32_t start)
 }
 
 // Returns false at end of input.
-static bool do_input(Interp &in, int count, const uint8_t *types, bool prompted)
+static bool do_input(Interp &in, int count, const uint8_t *types, uint8_t flags)
 {
+    bool prompted = flags & 1;
     char line[256];
     const Machine *m = in.dialect->machine;
     for(;;) {
         in.inbuf.clear();
         in.fields.clear();
         bool quiet = m && m->input_redirected(in);
-        if(!quiet && (!prompted || in.sem.mark_after_prompt)) { out_text(in, in.sem.input_mark); }
+        if(!quiet && !(flags & 2) && (!prompted || in.sem.mark_after_prompt)) { out_text(in, in.sem.input_mark); }
         while(static_cast<int>(in.fields.n) < count) {
             if(in.fields.n > 0 && !quiet) {
                 out_char(in, '?');
@@ -388,7 +389,11 @@ static bool do_input(Interp &in, int count, const uint8_t *types, bool prompted)
             if(len < 0) { return false; }
             uint32_t start = in.inbuf.n;
             for(int k = 0; k < len; k++) { in.inbuf.push(line[k]); }
-            split_fields(in, start);
+            if(flags & 4) {
+                in.fields.push(Field{start, static_cast<uint32_t>(len)});
+            } else {
+                split_fields(in, start);
+            }
         }
         bool ok = true;
         for(int k = 0; k < count && ok; k++) {
@@ -475,6 +480,13 @@ static void call_builtin(Interp &in, uint8_t fn)
             } else {
                 push_num(in, next_random(in));
             }
+            break;
+        }
+        case FN_IRND: {
+            int32_t n = to_int(in, *top);
+            int32_t r = n == 0 ? 0 : static_cast<int32_t>(next_random(in) * (n < 0 ? -n : n));
+            top->tag = T_INT;
+            top->i = n < 0 ? -r : r;
             break;
         }
         case FN_LEN: {
@@ -658,6 +670,27 @@ Halt execute(Interp &in, uint32_t start)
                 } else {
                     push_num(in, num(a) / num(b));
                 }
+                in.pc += 1;
+                break;
+            }
+            case OP_IDIV: case OP_MOD: {
+                int32_t b = to_int(in, in.stack[in.sp - 1]);
+                int32_t a = to_int(in, in.stack[in.sp - 2]);
+                if(b == 0) { raise(in, E_DIVISION_BY_ZERO); }
+                in.sp -= 2;
+                push_int(in, b == -1 ? (op == OP_IDIV ? -a : 0) : (op == OP_IDIV ? a / b : a % b));
+                in.pc += 1;
+                break;
+            }
+            case OP_INT16: {
+                Value &a = in.stack[in.sp - 1];
+                if(a.tag != T_INT) {
+                    double d = a.d < 0 ? std::ceil(a.d) : std::floor(a.d);
+                    if(!(d >= -32767 && d <= 32767)) { raise(in, E_OVERFLOW); }
+                    a.tag = T_INT;
+                    a.i = static_cast<int32_t>(d);
+                }
+                if(a.i < -32767 || a.i > 32767) { raise(in, E_OVERFLOW); }
                 in.pc += 1;
                 break;
             }
@@ -863,7 +896,7 @@ Halt execute(Interp &in, uint32_t start)
                     StrRef s = in.stack[--in.sp].s;
                     if(!(m && m->input_redirected(in))) { out_bytes(in, str_ptr(in, s), s.len); }
                 }
-                if(!do_input(in, p[2], p + 3, p[1] & 1)) { return H_EOF; }
+                if(!do_input(in, p[2], p + 3, p[1])) { return H_EOF; }
                 in.pc += 3u + p[2];
                 break;
             }
@@ -917,6 +950,26 @@ Halt execute(Interp &in, uint32_t start)
             case OP_GOTO:
                 jump(in, rd32(p + 1));
                 break;
+            case OP_GOTOX: case OP_GOSUBX: {
+                int32_t number = to_int(in, in.stack[--in.sp]);
+                uint32_t lo = 0, hi = in.linetab.n;
+                while(lo < hi) {
+                    uint32_t mid = (lo + hi) / 2;
+                    if(in.linetab[mid].number < number) { lo = mid + 1; } else { hi = mid; }
+                }
+                if(lo >= in.linetab.n || in.linetab[lo].number != number) { raise(in, E_UNDEFD_STATEMENT); }
+                if(op == OP_GOSUBX) {
+                    if(in.ctrl.n >= 4096) { raise(in, E_OUT_OF_MEMORY); }
+                    Frame f;
+                    f.kind = F_GOSUB;
+                    f.slot = 0;
+                    f.pc = in.pc + 1;
+                    f.limit = f.step = 0;
+                    in.ctrl.push(f);
+                }
+                jump(in, in.linetab[lo].code_off);
+                break;
+            }
             case OP_JMP:
                 in.pc = rd32(p + 1);
                 break;

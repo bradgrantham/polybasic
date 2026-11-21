@@ -59,6 +59,12 @@ bool a2_graphics_poke(uint16_t addr, uint8_t value);
 // plotted (the ROM's HCLR and BKGND).
 void a2_hires_fill(bool with_colour);
 
+// routines.cpp: machine code that recovered disks CALL, recognised by its
+// bytes and done natively.  a2_routine returns false if nothing it knows is
+// at the address; a2_routines_finish lets any sound it started play out.
+bool a2_routine(Interp &in, uint16_t addr);
+void a2_routines_finish(Interp &in);
+
 // video.cpp: draw the screen the switches select into A2_FB_W * A2_FB_H
 // pixels (0x00RRGGBB).  Flashing characters are inverse while flash_on; a
 // cursor is drawn at (cursor_row, cursor_col) unless cursor_row is negative.

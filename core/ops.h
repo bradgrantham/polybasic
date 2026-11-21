@@ -21,6 +21,10 @@ enum Op : uint8_t {
     OP_LOAD,          // u16 symbol
     OP_LOADA,         // u16 symbol, u8 ndims          (subscripts on the stack)
     OP_ADD, OP_SUB, OP_MUL, OP_DIV, OP_POW, OP_NEG,
+    // For a dialect with whole numbers only (Integer BASIC):
+    OP_IDIV,          // division with the fraction dropped
+    OP_MOD,           // remainder, with the sign of the dividend
+    OP_INT16,         // make the top of the stack a whole number; -32767..32767 or overflow
     OP_CAT,           // string concatenation
     OP_CMP,           // u8 mask (1 '<', 2 '=', 4 '>'), numbers
     OP_SCMP,          // u8 mask, strings
@@ -36,13 +40,16 @@ enum Op : uint8_t {
     OP_DIM,           // u16 symbol, u8 ndims
     OP_DEF,           // u16 function symbol, u16 parameter symbol, u32 body length
     OP_PRINT_NUM, OP_PRINT_STR, OP_PRINT_ZONE, OP_PRINT_NL, OP_PRINT_TAB, OP_PRINT_SPC,
-    OP_INPUT,         // u8 flags (1: prompt on stack), u8 n, n type bytes
+    OP_INPUT,         // u8 flags (1: prompt on stack, 2: print no mark, 4: the whole
+                      // line is one field), u8 n, n type bytes
     OP_INPUT_GET,     // u8 field index, u8 type
     OP_READ,          // u8 type
     OP_RESTORE,       // u32 line number, or NO_TARGET
     OP_LIST,          // u32 first line, u32 last line: list them and carry on
     OP_GOTO,          // u32 code offset
     OP_GOSUB,         // u32 code offset
+    OP_GOTOX,         // the line number is on the stack
+    OP_GOSUBX,
     OP_RETURN,
     OP_ON,            // u8 kind (0 GOTO, 1 GOSUB), u8 n, n * u32 code offsets
     OP_JF,            // u32 code offset: jump if the condition is zero
@@ -66,6 +73,7 @@ enum Fn : uint8_t {
     FN_ABS, FN_ATN, FN_COS, FN_EXP, FN_INT, FN_LOG, FN_RND, FN_SGN, FN_SIN,
     FN_SQR, FN_TAN, FN_LEN, FN_VAL, FN_ASC, FN_CHR, FN_STR, FN_LEFT, FN_RIGHT,
     FN_MID2, FN_MID3, FN_FRE, FN_POS,
+    FN_IRND,          // RND(n) of Integer BASIC: a whole number from 0 to n - 1
 };
 
 }  // namespace basic

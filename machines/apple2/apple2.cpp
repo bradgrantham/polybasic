@@ -614,7 +614,7 @@ void call(Interp &in, uint16_t addr)
         case 0xF328:                              // tidy the stack after an ONERR; nothing to tidy here
             break;
         default:
-            unavailable(in, "CALL", addr);
+            if(!a2_routine(in, addr)) { unavailable(in, "CALL", addr); }
     }
 }
 
@@ -1564,6 +1564,7 @@ void a2_finish(Interp &in)
         for(int k = 0; k < MAX_FILES; k++) { close_file(in, k); }
     }
     in.trap = outer;
+    a2_routines_finish(in);
     if(a2.png[0] && (a2_video.graphics || !a2.snapped)) { snapshot(); }
     if(a2.window) {
         // Leave the picture up until a key is pressed or the window is closed
@@ -1609,7 +1610,8 @@ void a2_direct(Interp &, char *line, int cap)
     while(*arg == ' ') { arg++; }
     if((verb == V_RUN || verb == V_LOAD || verb == V_SAVE) && (!*arg || (*arg >= '0' && *arg <= '9'))) { return; }
     char command[600];
-    int n = snprintf(command, sizeof(command), "PRINT CHR$(4);\"%s\"", text);
+    // The Ctrl-D goes inside the string: Integer BASIC has no CHR$.
+    int n = snprintf(command, sizeof(command), "PRINT \"\x04%s\"", text);
     if(n < cap) { memcpy(line, command, static_cast<size_t>(n) + 1); }
 }
 

@@ -31,6 +31,8 @@ void sound_tone(Interp &in, int voice, double hertz, int32_t ms, int volume);
 void sound_play(Interp &in, const StrRef *strings, int count);
 void sound_off();                         // stop at once and forget what is queued
 bool sound_playing(int voice);            // a voice 0..2, or -1 for any
+// Milliseconds of a voice's sound not yet handed to the platform.
+uint32_t sound_queued_ms(int voice);
 void sound_pump();                        // hand the platform as much as it will take
 void sound_finish(Interp &in);            // play out what is queued, then stop
 

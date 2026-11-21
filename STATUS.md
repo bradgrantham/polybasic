@@ -11,10 +11,10 @@ What exists and what comes next. The phases are defined in [PLAN.md](PLAN.md).
 | 4a | Apple II graphics: window and PNG | Done |
 | 4b | Griffin dialect; `gfx` pack with sound, on a host and Griffin Jr. | Done |
 | 5 | Applesoft memory access | Done as far as it goes without a 6502 (phase 7) |
-| 6 | Integer BASIC front end | Not started |
+| 6 | Integer BASIC front end | Done |
 | 7 | Griffin video pack; 6502 core | Not started; each needs a design |
 
-`make test` runs 54 tests and all pass on a Mac built with clang against SDL3. The 51 before
+`make test` runs 58 tests and all pass on a Mac built with clang against SDL3. The 51 before
 phase 5 was finished also passed with
 `SDL3=no`; on Linux (x86-64) built with GCC 13.3 with `SDL3=no`, where they also pass under
 `-fsanitize=address,undefined`, and against SDL 3.4.20 (built from source into `~/.local`; the
@@ -358,3 +358,74 @@ bytes, and the rule for what counts as a shape collision.
 
 Not done: `USR`, `SHLOAD`, `STORE`, `RECALL`, `DEL`, `BSAVE`; the speaker makes no sound; paddle timing through
 the raw switches (-16284 and on) is unavailable, only `PDL` works.
+
+## Phase 6: Integer BASIC (done)
+
+Apple II Integer BASIC as a fourth dialect on the host, running on the same Apple II machine as
+Applesoft. A file whose first line is `REM INTEGER BASIC` selects it. Three more tests:
+`tests/integer/language.bas`, `tests/integer/errors.cmd` and `tests/graphics/intlores.bas`.
+
+- **Front end** (`dialects/integer.cpp`): its own lexer and parser. Whole numbers from -32767
+  to 32767 with `*** >32767 ERR` outside them; `MOD`, `#` and `<>`; `GOTO` and `GOSUB` with an
+  expression; `IF` that skips only the statement after `THEN`; strings as rows of characters
+  (`A$(3)`, `A$(3,5)`, `A$(3)=B$`) compared with `=` and `#`; `TAB` and `VTAB` as statements;
+  `POP`, `CLR`, `LIST`; the lo-res statements, `PEEK`, `POKE`, `CALL` and `PDL` through the
+  Apple II machine; `RND(n)` from 0 to n - 1; `ASC` with the high bit set.
+- **Core:** five instructions (`OP_IDIV`, `OP_MOD`, `OP_INT16`, `OP_GOTOX`, `OP_GOSUBX`), an
+  integer `RND`, two `INPUT` flags (no question mark; the whole line is one string), and a hook
+  for a dialect to word its own error messages (`Dialect::report`).
+- **Messages** are Integer BASIC's: `*** SYNTAX ERR`, `*** BAD BRANCH ERR`, `STOPPED AT 120`,
+  the `>` prompt.
+- **Programs chain between the two BASICs** as DOS does it: an Applesoft program can `RUN` an
+  Integer one and the reverse, and DOS commands typed at the `>` prompt are obeyed.
+
+The check: of the 66 distinct recovered Integer BASIC programs, 62 compile with no error, 3
+more only use `DEL`, and 1 has machine code stored where program lines should be. Run with no
+input (`tools/corpus.py --tier integer --run`), 20 run to their end, 45 stop at something not
+available and 1 at a syntax error in an `EXEC` file's Monitor commands. Of the 45, 41 are a
+`CALL` to machine code in RAM, 37 of them the Christmas carols' note routines. One game,
+`ANIMALS`, was played through a round with scripted answers, reading its animals from the disk.
+
+The original Christmas Carols disk runs right round and plays: its Applesoft menus hand over
+to the Integer BASIC carols and back through `EXEC` files, and the carols' note routines are
+stood in for (below).
+
+Differences from Integer BASIC proper:
+
+- Words must stand apart from names, as in a listing (`FOR I=1 TO 10`, not `FORI=1TO10`).
+- A variable `A` and the array element `A(0)` are separate here and the same thing there.
+- `DIM A$(20)` sets no limit on the string's length.
+- A program that runs off its end stops quietly; there it says `*** NO END ERR`.
+- `DEL`, `NEW`, `LOAD`, `SAVE`, `CON`, `AUTO` and `MAN` inside a program are not available;
+  `DSP` and `TRACE` are accepted and do nothing.
+- It is in the host build only; nothing was done for the 68000.
+
+Written from memory of the Integer BASIC manual and not checked against the ROM: operator
+precedence (`NOT` and unary minus bind tightest, so `-3^2` is 9), `INPUT` printing `?` for a
+number and nothing for a string, eight-column `PRINT` zones, `FOR` always running its body once,
+and the wording of the messages.
+
+### Stand-ins for machine code (`machines/apple2/routines.cpp`)
+
+There is no 6502. A `CALL` into RAM first asks whether the bytes at that address are a routine
+it knows, and if so does natively what the routine would have done.
+
+- **The note routines of `APPLE-MUSIC SUBROUTINES`,** which the Christmas Carols disk plays its
+  tunes with: 42 routines, one for each pitch, all starting with the same six bytes. Each is
+  played through the sound device at the pitch and for the time its 6502 cycles come to
+  (counted by a program written for the purpose, at 1,020,484 cycles a second; not checked on
+  an Apple). The notes are in tune with each other and about 45 cents flat of A = 440, as on
+  the Apple by that count. The `CALL` returns when the note is nearly over, so the words keep
+  time with the tune. Carol 30's `CALL` six bytes early is taken as the note it falls into.
+- `tests/integer/music.bas` covers it with a file holding only the six bytes at two addresses.
+
+Checked: one carol written to a WAV file is the length the converter worked out (67.9 s) and
+its first note is at 190 Hz, where the routine comes to 191; another carol against SDL's silent
+sound device took 34.5 s for 33 s of notes. Nobody has listened to it yet.
+
+Not done: the empty `FOR` loops the carols rest with take no time here, so those short rests
+are lost. `--wav` files have the padding described under phase 4b after every note.
+
+Found on the way: the host never finished playing when its sound device was closed, because
+the stream was not flushed first and its count of samples waiting never reached zero. A
+program that had made any sound hung at its end. Fixed in `platform/posix`.

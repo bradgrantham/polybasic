@@ -68,6 +68,7 @@ extern const Dialect applesoft_dialect = {
     msfamily_compile_line,
     keywords,
     &apple2_machine,
+    nullptr,
 };
 
 }  // namespace basic

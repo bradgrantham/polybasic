@@ -13,6 +13,7 @@ int plat_display_key() { return -1; }
 
 bool host_audio_open(int) { return false; }
 void host_audio_put(const int16_t *, int) { }
+void host_audio_flush() { }
 int host_audio_queued() { return 0; }
 void host_audio_close() { }
 

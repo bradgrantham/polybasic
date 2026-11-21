@@ -207,6 +207,9 @@ struct Dialect {
     void (*compile_line)(Compiler &, const char *text);
     const void *frontend;         // front-end data, e.g. its keyword table
     const Machine *machine;       // null: plain console straight to the platform
+    // Print the message for an error, or for a program stopped by STOP or
+    // Ctrl-C (E_BREAK), at `line` (-1: none).  Null: "?SYNTAX ERROR IN 120".
+    void (*report)(Interp &, Err e, int32_t line);
 };
 
 // The dialects linked into this build, null terminated; the first is the default.

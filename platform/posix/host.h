@@ -25,6 +25,7 @@ void host_break();                // as if Ctrl-C had been typed
 // display_sdl.cpp or display_none.cpp: the sound device.
 bool host_audio_open(int rate);                       // false: there is none
 void host_audio_put(const int16_t *samples, int count);
+void host_audio_flush();                             // play what is held back
 int host_audio_queued();                              // samples not yet played
 void host_audio_close();
 

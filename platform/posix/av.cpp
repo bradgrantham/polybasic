@@ -168,6 +168,7 @@ void plat_audio_submit()
 void plat_audio_close(bool now)
 {
     if(device) {
+        if(!now) { host_audio_flush(); }
         while(!now && host_audio_queued() > 0) {
             if(plat_break_pending()) { break; }
             usleep(10000);

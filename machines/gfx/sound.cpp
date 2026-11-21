@@ -378,6 +378,15 @@ bool sound_playing(int voice)
     return voice_active(s.voice[voice]);
 }
 
+uint32_t sound_queued_ms(int voice)
+{
+    const Voice &v = s.voice[voice];
+    if(!s.open || s.rate == 0) { return 0; }
+    uint64_t samples = v.busy ? v.left : 0;
+    for(uint32_t k = 0; k < v.count; k++) { samples += v.queue[(v.head + k) % QUEUE].samples; }
+    return static_cast<uint32_t>(samples * 1000 / s.rate);
+}
+
 void sound_pump()
 {
     if(!s.open) { return; }

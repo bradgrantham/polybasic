@@ -125,6 +125,13 @@ void host_audio_put(const int16_t *samples, int count)
     if(audio) { SDL_PutAudioStreamData(audio, samples, count * 2); }
 }
 
+// Nothing more is coming for now: let the stream play what it is holding
+// back to convert, or the count below never reaches zero.
+void host_audio_flush()
+{
+    if(audio) { SDL_FlushAudioStream(audio); }
+}
+
 int host_audio_queued()
 {
     return audio ? SDL_GetAudioStreamQueued(audio) / 2 : 0;

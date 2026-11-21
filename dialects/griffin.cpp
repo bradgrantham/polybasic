@@ -85,6 +85,7 @@ extern const Dialect griffin_dialect = {
     msfamily_compile_line,
     keywords,
     &gfx_machine,
+    nullptr,
 };
 
 }  // namespace basic

@@ -48,9 +48,10 @@
 namespace basic {
 
 extern const Dialect msbasic_dialect;
+extern const Dialect integer_dialect;
 extern const Dialect applesoft_dialect;
 extern const Dialect griffin_dialect;
-const Dialect *const dialects[] = {&msbasic_dialect, &applesoft_dialect, &griffin_dialect, nullptr};
+const Dialect *const dialects[] = {&msbasic_dialect, &applesoft_dialect, &griffin_dialect, &integer_dialect, nullptr};
 
 static volatile sig_atomic_t break_flag;
 static bool echo_input;           // input is not a terminal: show what was read

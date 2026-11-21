@@ -6,8 +6,9 @@ CXXFLAGS ?= -std=c++23 -O2 -g -Wall -Wextra -fno-exceptions -fno-rtti
 BUILD     = build
 
 CORE     = core/exec.cpp core/program.cpp core/number.cpp
-DIALECTS = dialects/msfamily.cpp dialects/msbasic.cpp dialects/applesoft.cpp dialects/griffin.cpp
+DIALECTS = dialects/msfamily.cpp dialects/msbasic.cpp dialects/applesoft.cpp dialects/integer.cpp dialects/griffin.cpp
 MACHINES = machines/apple2/apple2.cpp machines/apple2/graphics.cpp machines/apple2/video.cpp \
+           machines/apple2/routines.cpp \
            machines/common/png.cpp machines/gfx/gfx.cpp machines/gfx/sound.cpp
 
 # The graphics window needs SDL3.  Without it (or with SDL3=no) the build

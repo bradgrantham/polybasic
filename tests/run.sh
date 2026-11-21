@@ -29,6 +29,7 @@ rm -rf build/scratch              # where Applesoft tests write their files
 mkdir -p build/scratch
 for t in tests/programs/*.bas tests/lang/*.bas tests/lang/*.cmd \
          tests/applesoft/*.bas tests/applesoft/*.cmd tests/corpus/*.bas \
+         tests/integer/*.bas tests/integer/*.cmd \
          tests/graphics/*.bas tests/corpus/pictures/*.bas \
          tests/griffin/*.bas tests/griffin/*.cmd tests/griffin/pictures/*.bas \
          tests/griffin/sound/*.bas; do
