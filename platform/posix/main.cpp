@@ -332,7 +332,7 @@ int main(int argc, char **argv)
     static Interp in;
     init(in, dialect ? dialect : dialects[0]);
     in.dialect_locked = dialect != nullptr;
-    if(randomize) { in.rnd_state = plat_entropy() | 1; }
+    if(randomize) { seed_random(in, plat_entropy()); }
 
     int status = 0;
     if(program) {

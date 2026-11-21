@@ -198,6 +198,22 @@ static inline void push_whole_or_num(Interp &in, double d)
     }
 }
 
+// Set the generator from a seed of any quality.  A clock that has only just
+// started counting gives a seed with a few low bits set, and one step of the
+// generator from such a state leaves the top of the word nearly empty, so the
+// first RND would always be close to zero.  Mixing the seed first (the 32-bit
+// finalizer "lowbias32") spreads every seed bit over the whole word.
+void seed_random(Interp &in, uint32_t seed)
+{
+    uint32_t x = seed;
+    x ^= x >> 16;
+    x *= 0x7feb352du;
+    x ^= x >> 15;
+    x *= 0x846ca68bu;
+    x ^= x >> 16;
+    in.rnd_state = x ? x : 1;         // zero is the one state that never leaves
+}
+
 static double next_random(Interp &in)
 {
     uint32_t x = in.rnd_state;
@@ -473,7 +489,7 @@ static void call_builtin(Interp &in, uint8_t fn)
                 uint32_t seed;
                 float f = static_cast<float>(d);
                 memcpy(&seed, &f, sizeof(seed));
-                in.rnd_state = seed ? seed : 1;
+                seed_random(in, seed);
                 push_num(in, next_random(in));
             } else if(d == 0) {
                 push_num(in, in.rnd_last);
@@ -1166,8 +1182,7 @@ Halt execute(Interp &in, uint32_t start)
                 in.pc += 1;
                 break;
             case OP_RANDOMIZE: {
-                uint32_t seed = plat_entropy();
-                in.rnd_state = seed ? seed : 1;
+                seed_random(in, plat_entropy());
                 in.pc += 1;
                 break;
             }

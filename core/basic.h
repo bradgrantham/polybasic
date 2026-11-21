@@ -277,6 +277,7 @@ struct Interp {
 };
 
 void init(Interp &in, const Dialect *d);
+void seed_random(Interp &in, uint32_t seed);       // RANDOMIZE, RND(-x): any seed will do
 
 // Raise a BASIC error (longjmp to in.trap).
 [[noreturn]] void raise(Interp &in, Err e);
